@@ -3,7 +3,9 @@
 # TODO: Figure out equation for tracking from 5000 to 3500 feet (wing with a
 #       constant angle with respect to the ground with an initial vert/horiz
 #       speed based on whatever it is at z = 5000)
-# TODO: Plot and label opening separation between groups
+# TODO: Add more configurability with respect to group types (ability to change
+#       number of belly fliers, freefliers, etc.)
+# TODO: Verify/fix freefly CD and A values to reflect real data
 
 import time
 import sys
