@@ -31,26 +31,32 @@ LB_TO_KG = 0.45359237
 M_TO_FT = 3.280839895
 MPS_TO_MPH = 2.2369362920544025
 
-# CONSTANTS - THESE SHOULD LIKELY STAY THE SAME
-rho = 1.0               # Air density (will eventually not be constant)
-A_HD = 0.35             # Head Down surface area (see http://labman.phys.utk.edu/phys221core/modules/m3/drag.html) 
-A_BELLY = 16.0*68.0 / 144.0 / ((M_TO_FT)**2) * 0.7 # Human body surface area -- Estimated by taking my width*height in inches, 
-                                                                               #converting to feet, then converting to meters 
-                                                                               #and multiplying by an estimate of the percentage 
-                                                                               #of the rectangular surface that would be filled 
-                                                                               #by a human body falling with an arch
+# ENVIRONMENTAL PARAMETERS
+rho = 1.0               # Air density (NOTE: will eventually not be constant)
+g = 9.81                # Gravitational acceleration constant in m/s^2
+
+# JUMP PARAMETERS
+EXIT_ALT = 13500        # Exit altitude in feet
+BREAKOFF_ALT = 5000     # Breakoff altitude in feet
+PULL_ALT = 3500         # Pull altitude in feet
+IDEAL_SEP = 1000        # Ideal exit separation in feet
+BLAZE_IT = 420          # You know what I'm sayin
+SIM_TIME = 80           # Number of seconds to run simulation
+z0 = EXIT_ALT/M_TO_FT   # Exit altitude (13,500 ft) converted to meters
+
+# AERODYNAMIC PARAMETERS
 CD_HD = 0.8             # Drag Coefficient of a Head Down flyer (see https://tinyurl.com/ya99r6b4)
 CD_BELLY = 1.0          # Estimated drag coefficient of a belly flyer
-g = 9.81                # Gravitational acceleration constant in m/s^2
-z0 = 13500 * 1/M_TO_FT  # Initial height (13,500 ft) converted to meters
+A_HD = 0.35             # Head Down surface area (see http://labman.phys.utk.edu/phys221core/modules/m3/drag.html) 
+A_BELLY = 16.0*68.0 / 144.0 / ((M_TO_FT)**2) * 0.7 # Estimated Human body surface area - see NOTE 1 
 
 ################################################################################
-# CONFIGURABLE CONSTANT PARAMETERS #############################################
+# CONFIGURABLE PARAMETERS ######################################################
 ################################################################################
 m = 160*LB_TO_KG        # Jumper exit weight (mass), converted from lbs to kg
 Va = 70*KT_TO_MPS       # Aircraft airspeed, converted from knots to m/s
 V_upper = 20*KT_TO_MPS  # Average winds aloft speed, converted from knots to m/s
-t_sep = 10               # Exit separation in seconds
+t_sep = 10              # Exit separation in seconds
 num_groups = 7          # Number of groups on the load
 ################################################################################
 ################################################################################
@@ -60,6 +66,7 @@ num_groups = 7          # Number of groups on the load
 Q = 0                   # rho*A*CD, variable to keep code clean
 Vg = Va - V_upper       # Aircraft groundspeed in m/s
 x_offset = t_sep * Vg   # Exit separation in meters
+
 
 def find_nearest(array, value):
     found = False
@@ -75,19 +82,21 @@ def find_nearest(array, value):
     return closest
 
 def plot_trajectories(trajectories):
-
-    # Full load, all groups
     plt.figure(1)
+    # Iterate over full load of jumpers, plotting z vs x positions
     for i, jumper in enumerate(trajectories):
         plt.plot(jumper['x'], jumper['z'])
-    plt.axhline(y=5000, color='y', linestyle='dotted', alpha=0.7)
-    plt.axhline(y=3500, color='r', linestyle='--', alpha=0.7)
-    plt.axhline(y=0, color='k')
     plt.grid(alpha=0.4,linestyle='--')
     plt.title("Jump Run Trajectories")
     plt.xlabel("Jump Run (ft)")
     plt.ylabel("Altitude (ft)")
 
+    # Plot horizontal lines for breakoff/pull altitudes, as well as the ground
+    plt.axhline(y=BREAKOFF_ALT, color='y', linestyle='dotted', alpha=0.7)
+    plt.axhline(y=PULL_ALT, color='r', linestyle='--', alpha=0.7)
+    plt.axhline(y=0, color='k')
+
+    # Initialize variables for min and max separation distance
     min_sep_dist = 99999
     min_dist_0 = 0
     min_dist_1 = 0
@@ -95,11 +104,16 @@ def plot_trajectories(trajectories):
     max_dist_0 = 0
     max_dist_1 = 0
 
+    # Iterate over trajectories to find min/max separation distance
     for i, _ in enumerate(trajectories):
-        pull_x_0_idx = find_nearest(trajectories[i]['z'], 3500)
-        pull_x_1_idx = find_nearest(trajectories[i+1]['z'], 3500)
+        # For each pair of jumpers, search for the x positions corresponding to 
+        # the time at which the z position is closest to pull altitude
+        pull_x_0_idx = find_nearest(trajectories[i]['z'], PULL_ALT)
+        pull_x_1_idx = find_nearest(trajectories[i+1]['z'], PULL_ALT)
         pull_x_0 = trajectories[i]['x'][pull_x_0_idx]
         pull_x_1 = trajectories[i+1]['x'][pull_x_1_idx]
+
+        # Compute exit separation and update min/max values based on saved ones
         distance = pull_x_1 - pull_x_0
         if round(distance, 4) < round(min_sep_dist, 4):
             min_sep_dist = distance
@@ -110,25 +124,30 @@ def plot_trajectories(trajectories):
             max_dist_0 = pull_x_0
             max_dist_1 = pull_x_1
              
+        # Break at num_groups minus 2, to account for 0-based indexing and the
+        # fact that we're looking at index i+1
         if i == len(trajectories) - 2:
             break
 
-    if min_sep_dist < 1000:
-        plt.hlines(3700, min_dist_0, min_dist_1, colors='r', label=str(min_sep_dist), linestyle='--')
-        plt.text((min_dist_0 + min_dist_1)/2 - 420, 3800, str(round(min_sep_dist)) + " ft", color='r')
+    # Plot and label horizontal lines for min/max separation distance, using
+    # the color red if distance is less than the ideal separation distance
+    # (nominally 1000 feet) and green otherwise
+    if min_sep_dist < IDEAL_SEP:
+        plt.hlines(PULL_ALT+200, min_dist_0, min_dist_1, colors='r', label=str(min_sep_dist), linestyle='--')
+        plt.text((min_dist_0 + min_dist_1)/2 - BLAZE_IT, PULL_ALT+300, str(round(min_sep_dist)) + " ft", color='r')
     else:
-        plt.hlines(3700, min_dist_0, min_dist_1, colors='g', label=str(min_sep_dist), linestyle='--')
-        plt.text((min_dist_0 + min_dist_1)/2 - 420, 3800, str(round(min_sep_dist)) + " ft", color='g')
+        plt.hlines(PULL_ALT+200, min_dist_0, min_dist_1, colors='g', label=str(min_sep_dist), linestyle='--')
+        plt.text((min_dist_0 + min_dist_1)/2 - BLAZE_IT, PULL_ALT+300, str(round(min_sep_dist)) + " ft", color='g')
 
-    if max_sep_dist < 1000:
-        plt.hlines(3700, max_dist_0, max_dist_1, colors='r', label=str(max_sep_dist), linestyle='--')
-        plt.text((max_dist_0 + max_dist_1)/2 - 420, 3800, str(round(max_sep_dist)) + " ft", color='r')
+    if max_sep_dist < IDEAL_SEP:
+        plt.hlines(PULL_ALT+200, max_dist_0, max_dist_1, colors='r', label=str(max_sep_dist), linestyle='--')
+        plt.text((max_dist_0 + max_dist_1)/2 - BLAZE_IT, PULL_ALT+300, str(round(max_sep_dist)) + " ft", color='r')
     else:
-        plt.hlines(3700, max_dist_0, max_dist_1, colors='g', label=str(max_sep_dist), linestyle='--')
-        plt.text((max_dist_0 + max_dist_1)/2 - 420, 3800, str(round(max_sep_dist)) + " ft", color='g')
+        plt.hlines(PULL_ALT+200, max_dist_0, max_dist_1, colors='g', label=str(max_sep_dist), linestyle='--')
+        plt.text((max_dist_0 + max_dist_1)/2 - BLAZE_IT, PULL_ALT+300, str(round(max_sep_dist)) + " ft", color='g')
 
+    # Save figure to file and return 0
     plt.savefig("z_vs_x_all_groups.png")
-
     return 0
 
 if __name__ == "__main__":
@@ -136,7 +155,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
 
     # Array of time stamps for jump data in seconds
-    t = np.array(range(80))
+    t = np.array(range(SIM_TIME))
 
     # Create an array of Skydivers based on num_groups
     load = []
@@ -211,3 +230,11 @@ if __name__ == "__main__":
     processes.append(sp.Popen("eog z_vs_x_all_groups.png &", shell=True))
 
     signal.pause()
+
+
+
+# NOTE 1:
+# Human body surface area -- Estimated by taking my width*height in inches, 
+# converting to feet, then converting to meters and multiplying by an estimate 
+# of the percentage of the rectangular surface that would be filled by a human 
+# body falling with an arch
