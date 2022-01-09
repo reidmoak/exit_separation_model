@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # TODO: Figure out equation for tracking from 5000 to 3500 feet (wing with a
 #       constant angle with respect to the ground with an initial vert/horiz
 #       speed based on whatever it is at z = 5000)
