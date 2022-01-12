@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import const
 
 # CONSTANTS
-g = 9.81
+g = const.g
 
 class Skydiver:
 

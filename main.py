@@ -10,6 +10,8 @@
 #       at different altitudes
 # TODO: Clean up / Comment code
 # TODO: Add user interface to allow for run-time changes to configurable values
+# TODO: Add option to import data from CSV file of the load, including number
+#       of groups, discipline for each group, average mass of the group, etc.
 
 import time
 import sys
@@ -18,6 +20,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import subprocess as sp
+
+import params
+import const
 from skydiver import Skydiver
 
 def signal_handler(sig, frame):
@@ -25,50 +30,31 @@ def signal_handler(sig, frame):
     os.system("killall -s 9 eog")
     sys.exit(0)
 
-# CONVERSION CONSTANTS
-KT_TO_MPS = 0.51444444444444
-LB_TO_KG = 0.45359237
-M_TO_FT = 3.280839895
-MPS_TO_MPH = 2.2369362920544025
 
-# ENVIRONMENTAL PARAMETERS
-rho = 1.0               # Air density (NOTE: will eventually not be constant)
-g = 9.81                # Gravitational acceleration constant in m/s^2
+# SPECIAL PARAMETERS
+rho = params.rho # Air density (NOTE: will eventually not be constant)
 
 # JUMP PARAMETERS
-EXIT_ALT = 13500        # Exit altitude in feet
-BREAKOFF_ALT = 5000     # Breakoff altitude in feet
-PULL_ALT = 3500         # Pull altitude in feet
-IDEAL_SEP = 1000        # Ideal exit separation in feet
-BLAZE_IT = 420          # You know what I'm sayin
-SIM_TIME = 80           # Number of seconds to run simulation
-z0 = EXIT_ALT/M_TO_FT   # Exit altitude (13,500 ft) converted to meters
-
-# AERODYNAMIC PARAMETERS
-CD_HD = 0.8             # Drag Coefficient of a Head Down flyer (see https://tinyurl.com/ya99r6b4)
-CD_BELLY = 1.0          # Estimated drag coefficient of a belly flyer
-A_HD = 0.35             # Head Down surface area (see http://labman.phys.utk.edu/phys221core/modules/m3/drag.html) 
-A_BELLY = 16.0*68.0 / 144.0 / ((M_TO_FT)**2) * 0.7 # Estimated Human body surface area - see NOTE 1 
-
-################################################################################
-# CONFIGURABLE PARAMETERS ######################################################
-################################################################################
-m = 160*LB_TO_KG        # Jumper exit weight (mass), converted from lbs to kg
-Va = 70*KT_TO_MPS       # Aircraft airspeed, converted from knots to m/s
-V_upper = 20*KT_TO_MPS  # Average winds aloft speed, converted from knots to m/s
-t_sep = 10              # Exit separation in seconds
-num_groups = 7          # Number of groups on the load
-################################################################################
-################################################################################
-################################################################################
+EXIT_ALT     = params.EXIT_ALT      # Exit altitude in feet
+BREAKOFF_ALT = params.EXIT_ALT      # Breakoff altitude in feet
+PULL_ALT     = params.PULL_ALT      # Pull altitude in feet
+IDEAL_SEP    = params.IDEAL_SEP     # Ideal exit separation in feet
+SIM_TIME     = params.SIM_TIME      # Number of seconds to run simulation
+z0           = params.z0            # Exit altitude (13,500 ft) converted to meters
+m            = params.m             # Jumper exit weight (mass, in kg)
+Va           = params.Va            # Jump run airspeed in m/s
+V_upper      = params.V_upper       # Uppers airspeed in m/s @TODO Make this altitude-dependent
+t_sep        = params.t_sep         # Exit separation in seconds
+num_groups   = params.num_groups    # Number of groups on the load
 
 # Global runtime variables
-Q = 0                   # rho*A*CD, variable to keep code clean
-Vg = Va - V_upper       # Aircraft groundspeed in m/s
-x_offset = t_sep * Vg   # Exit separation in meters
+Q = 0                               # rho*A*CD, variable to keep code clean
+Vg = Va - V_upper                   # Aircraft groundspeed in m/s
+x_offset = t_sep * Vg               # Exit separation in meters
 
 
 def find_nearest(array, value):
+    closest = 0
     found = False
     for i, val in enumerate(array):
         if val > value:
@@ -90,6 +76,7 @@ def plot_trajectories(trajectories):
     plt.title("Jump Run Trajectories")
     plt.xlabel("Jump Run (ft)")
     plt.ylabel("Altitude (ft)")
+    plt.ylim(bottom=0)
 
     # Plot horizontal lines for breakoff/pull altitudes, as well as the ground
     plt.axhline(y=BREAKOFF_ALT, color='y', linestyle='dotted', alpha=0.7)
@@ -134,17 +121,17 @@ def plot_trajectories(trajectories):
     # (nominally 1000 feet) and green otherwise
     if min_sep_dist < IDEAL_SEP:
         plt.hlines(PULL_ALT+200, min_dist_0, min_dist_1, colors='r', label=str(min_sep_dist), linestyle='--')
-        plt.text((min_dist_0 + min_dist_1)/2 - BLAZE_IT, PULL_ALT+300, str(round(min_sep_dist)) + " ft", color='r')
+        plt.text((min_dist_0 + min_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(min_sep_dist)) + " ft", color='r')
     else:
         plt.hlines(PULL_ALT+200, min_dist_0, min_dist_1, colors='g', label=str(min_sep_dist), linestyle='--')
-        plt.text((min_dist_0 + min_dist_1)/2 - BLAZE_IT, PULL_ALT+300, str(round(min_sep_dist)) + " ft", color='g')
+        plt.text((min_dist_0 + min_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(min_sep_dist)) + " ft", color='g')
 
     if max_sep_dist < IDEAL_SEP:
         plt.hlines(PULL_ALT+200, max_dist_0, max_dist_1, colors='r', label=str(max_sep_dist), linestyle='--')
-        plt.text((max_dist_0 + max_dist_1)/2 - BLAZE_IT, PULL_ALT+300, str(round(max_sep_dist)) + " ft", color='r')
+        plt.text((max_dist_0 + max_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(max_sep_dist)) + " ft", color='r')
     else:
         plt.hlines(PULL_ALT+200, max_dist_0, max_dist_1, colors='g', label=str(max_sep_dist), linestyle='--')
-        plt.text((max_dist_0 + max_dist_1)/2 - BLAZE_IT, PULL_ALT+300, str(round(max_sep_dist)) + " ft", color='g')
+        plt.text((max_dist_0 + max_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(max_sep_dist)) + " ft", color='g')
 
     # Save figure to file and return 0
     plt.savefig("z_vs_x_all_groups.png")
@@ -166,16 +153,16 @@ if __name__ == "__main__":
     trajectories = []
     for i, jumper in enumerate(load):
         if i < 3: # TODO: Change this to actually function correctly without being hardcoded
-            A = A_BELLY
-            CD = CD_BELLY
+            A = const.A_BELLY
+            CD = const.CD_BELLY
             Q = rho*A*CD
             u = jumper.compute_u(t, Va, Q)
             w = jumper.compute_w(t, Va, Q)
             x = jumper.compute_x(t, i*x_offset, Va, Q)
             z = jumper.compute_z(t, z0, Va, Q)
         else:
-            A = A_HD
-            CD = CD_HD
+            A = const.A_HD
+            CD = const.CD_HD
             Q = rho*A*CD
             u = jumper.compute_u(t, Va, Q)
             w = jumper.compute_w(t, Va, Q)
@@ -187,10 +174,10 @@ if __name__ == "__main__":
         x = x - V_upper*t
 
         trajectories.append({
-            "u" : u*M_TO_FT,
-            "w" : w*M_TO_FT,
-            "x" : x*M_TO_FT,
-            "z" : z*M_TO_FT
+            "u" : u*const.M_TO_FT,
+            "w" : w*const.M_TO_FT,
+            "x" : x*const.M_TO_FT,
+            "z" : z*const.M_TO_FT
         })
         
     # print(trajectories)
@@ -210,7 +197,7 @@ if __name__ == "__main__":
 
     # Single jumper vertical speed - TODO: Make this its own function (with horiz speed)
     plt.figure(2)
-    plt.plot(t, trajectories[0]['w']*MPS_TO_MPH)
+    plt.plot(t, trajectories[0]['w']*const.MPS_TO_MPH)
     plt.grid(alpha=.4,linestyle='--')
     plt.title("Vertical Speed vs. Time (First Group)")
     plt.xlabel("Time (s)")
@@ -219,7 +206,7 @@ if __name__ == "__main__":
 
     # Single jumper horizontal speed
     plt.figure(3)
-    plt.plot(t, trajectories[0]['u']*MPS_TO_MPH)
+    plt.plot(t, trajectories[0]['u']*const.MPS_TO_MPH)
     plt.grid(alpha=.4,linestyle='--')
     plt.title("Horizontal Speed vs. Time (First Group)")
     plt.xlabel("Time (s)")
@@ -230,11 +217,3 @@ if __name__ == "__main__":
     processes.append(sp.Popen("eog z_vs_x_all_groups.png &", shell=True))
 
     signal.pause()
-
-
-
-# NOTE 1:
-# Human body surface area -- Estimated by taking my width*height in inches, 
-# converting to feet, then converting to meters and multiplying by an estimate 
-# of the percentage of the rectangular surface that would be filled by a human 
-# body falling with an arch
