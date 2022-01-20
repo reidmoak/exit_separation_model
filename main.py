@@ -119,19 +119,13 @@ def plot_trajectories(trajectories):
     # Plot and label horizontal lines for min/max separation distance, using
     # the color red if distance is less than the ideal separation distance
     # (nominally 1000 feet) and green otherwise
-    if min_sep_dist < IDEAL_SEP:
-        plt.hlines(PULL_ALT+200, min_dist_0, min_dist_1, colors='r', label=str(min_sep_dist), linestyle='--')
-        plt.text((min_dist_0 + min_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(min_sep_dist)) + " ft", color='r')
-    else:
-        plt.hlines(PULL_ALT+200, min_dist_0, min_dist_1, colors='g', label=str(min_sep_dist), linestyle='--')
-        plt.text((min_dist_0 + min_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(min_sep_dist)) + " ft", color='g')
-
-    if max_sep_dist < IDEAL_SEP:
-        plt.hlines(PULL_ALT+200, max_dist_0, max_dist_1, colors='r', label=str(max_sep_dist), linestyle='--')
-        plt.text((max_dist_0 + max_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(max_sep_dist)) + " ft", color='r')
-    else:
-        plt.hlines(PULL_ALT+200, max_dist_0, max_dist_1, colors='g', label=str(max_sep_dist), linestyle='--')
-        plt.text((max_dist_0 + max_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(max_sep_dist)) + " ft", color='g')
+    min_color = 'r' if min_sep_dist < IDEAL_SEP else 'g'
+    plt.hlines(PULL_ALT+200, min_dist_0, min_dist_1, colors=min_color, label=str(min_sep_dist), linestyle='--')
+    plt.text((min_dist_0 + min_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(min_sep_dist)) + " ft", color=min_color)
+    
+    max_color = 'r' if max_sep_dist < IDEAL_SEP else 'g'
+    plt.hlines(PULL_ALT+200, max_dist_0, max_dist_1, colors=max_color, label=str(max_sep_dist), linestyle='--')
+    plt.text((max_dist_0 + max_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(max_sep_dist)) + " ft", color=max_color)
 
     # Save figure to file and return 0
     plt.savefig("z_vs_x_all_groups.png")
@@ -181,11 +175,10 @@ if __name__ == "__main__":
         })
         
     # print(trajectories)
-
-    DEBUG = 0
-    if DEBUG == 1:
-        for i, z in enumerate(trajectories[0]['z']):
-            print("time = " + str(i) + " sec, Altitude = " + str(z) + " ft")
+    # DEBUG = 0
+    # if DEBUG == 1:
+    #    for i, z in enumerate(trajectories[0]['z']):
+    #        print("time = " + str(i) + " sec, Altitude = " + str(z) + " ft")
 
     ###################
     #      PLOTS      #
