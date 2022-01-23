@@ -9,7 +9,6 @@
 # TODO: Add more granular winds aloft layers to reflect different wind speeds
 #       at different altitudes (V_upper)
 # TODO: Clean up / Comment code
-# TODO: Add user interface to allow for run-time changes to configurable values
 # TODO: Add option to import data from CSV file of the load, including number
 #       of groups, discipline for each group, average mass of the group, etc.
 
@@ -39,6 +38,10 @@ z0 = params.EXIT_ALT / const.M_TO_FT        # Initial Altitude in meters
 m = params.weight * const.LB_TO_KG          # Jumper mass in kg
 V_upper = params.V_upper * const.KT_TO_MPS  # Uppers in m/s (TODO: Make non-constant)
 Va = params.V_air * const.KT_TO_MPS         # Aircraft airspeed in m/s
+sim_time = params.num_groups * 20           # Simulation time in seconds
+sim_time = 120                              # TODO: Figure out how to make this
+                                            # dynamic, since the above line makes
+                                            # the x limit of the plot very negative
 
 Q = 0                                       # rho*A*CD, to keep code clean
 Vg = Va - V_upper                           # Aircraft groundspeed in m/s
@@ -49,6 +52,7 @@ def signal_handler(sig, frame):
     os.system("killall -s 9 eog")
     sys.exit(0)
 
+# Return array index where array value is closest to provided value
 def find_nearest(array, value):
     closest = 0
     found = False
@@ -132,7 +136,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
 
     # Array of time stamps for jump data in seconds
-    t = np.array(range(params.SIM_TIME))
+    t = np.array(range(sim_time))
 
     # Create an array of Skydivers based on num_groups
     load = []

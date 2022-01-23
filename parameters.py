@@ -2,6 +2,7 @@
 
 import const
 import os
+import sys
 from termcolor import colored
 from types import ModuleType
 
@@ -12,25 +13,31 @@ class Params:
         self.BREAKOFF_ALT    = 5000        # Breakoff altitude in feet
         self.PULL_ALT        = 3500        # Pull altitude in feet
         self.IDEAL_SEP       = 1000        # Ideal exit separation (1000 feet)
-
-        self.SIM_TIME        = 120         # Simulation time in seconds
-
-        self.weight          = 160         # Jumper exit weight in pounds
-
         self.V_upper         = 10          # Uppers in knots
         self.V_air           = 70          # Jump run airspeed in knots 
-
         self.t_sep           = 10          # Exit separation in seconds
         self.num_groups      = 7           # Number of groups on the load
-
+        self.weight          = 160         # Average jumper exit weight in pounds
+        
         self.setup()
 
 
     # TODO: Have this print out units, explanations of the variables, etc.
     def show(self):
+        # NOTE: Unfortunately, not sure how I would make this not be hard-coded
+        var_help = {}
+        var_help['EXIT_ALT'] = "Exit altitude in feet"
+        var_help['BREAKOFF_ALT'] = "Breakoff altitude in feet"
+        var_help['PULL_ALT'] = "Pull altitude in feet"
+        var_help['IDEAL_SEP'] = "Ideal exit separation in feet (default: 1000)"
+        var_help['weight'] = "Average jumper exit weight in pounds"
+        var_help['V_upper'] = "Average winds aloft uppers in knots"
+        var_help['V_air'] = "Jump run aircraft airspeed in knots"
+        var_help['t_sep'] = "Exit separation in seconds"
+        var_help['num_groups'] = "Number of groups on the load"
         print("")
         for i, key in enumerate(self.__dict__):
-            print(f"{str(i+1) + ') ' + key:<30}{self.__dict__[key]:<40}")
+            print(f"{str(i+1) + ') ' + key:<20}{self.__dict__[key]:<10}{var_help[key]:<30}")
         print("")
 
     def setup(self):
