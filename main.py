@@ -7,12 +7,13 @@
 #       number of belly fliers, freefliers, etc.)
 # TODO: Verify/fix freefly CD and A values to reflect real data
 # TODO: Add more granular winds aloft layers to reflect different wind speeds
-#       at different altitudes
+#       at different altitudes (V_upper)
 # TODO: Clean up / Comment code
 # TODO: Add user interface to allow for run-time changes to configurable values
 # TODO: Add option to import data from CSV file of the load, including number
 #       of groups, discipline for each group, average mass of the group, etc.
 
+# Python Built-In imports
 import time
 import sys
 import signal
@@ -20,38 +21,33 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import subprocess as sp
+from termcolor import colored
 
-import params
+# Custom Module imports
 import const
+from parameters import Params
 from skydiver import Skydiver
+
+# Initialize params class, which will prompt user to setup parameter values
+params = Params()
+
+# Special Parameters
+rho = 1.0 # Air density (NOTE: will eventually not be constant)
+
+# Global runtime variables
+z0 = params.EXIT_ALT / const.M_TO_FT        # Initial Altitude in meters
+m = params.weight * const.LB_TO_KG          # Jumper mass in kg
+V_upper = params.V_upper * const.KT_TO_MPS  # Uppers in m/s (TODO: Make non-constant)
+Va = params.V_air * const.KT_TO_MPS         # Aircraft airspeed in m/s
+
+Q = 0                                       # rho*A*CD, to keep code clean
+Vg = Va - V_upper                           # Aircraft groundspeed in m/s
+x_offset = params.t_sep * Vg                # Exit separation in meters
 
 def signal_handler(sig, frame):
     print('\nYou pressed Ctrl+C, killing all display processes.')
     os.system("killall -s 9 eog")
     sys.exit(0)
-
-
-# SPECIAL PARAMETERS
-rho = params.rho # Air density (NOTE: will eventually not be constant)
-
-# JUMP PARAMETERS
-EXIT_ALT     = params.EXIT_ALT      # Exit altitude in feet
-BREAKOFF_ALT = params.EXIT_ALT      # Breakoff altitude in feet
-PULL_ALT     = params.PULL_ALT      # Pull altitude in feet
-IDEAL_SEP    = params.IDEAL_SEP     # Ideal exit separation in feet
-SIM_TIME     = params.SIM_TIME      # Number of seconds to run simulation
-z0           = params.z0            # Exit altitude (13,500 ft) converted to meters
-m            = params.m             # Jumper exit weight (mass, in kg)
-Va           = params.Va            # Jump run airspeed in m/s
-V_upper      = params.V_upper       # Uppers airspeed in m/s @TODO Make this altitude-dependent
-t_sep        = params.t_sep         # Exit separation in seconds
-num_groups   = params.num_groups    # Number of groups on the load
-
-# Global runtime variables
-Q = 0                               # rho*A*CD, variable to keep code clean
-Vg = Va - V_upper                   # Aircraft groundspeed in m/s
-x_offset = t_sep * Vg               # Exit separation in meters
-
 
 def find_nearest(array, value):
     closest = 0
@@ -79,8 +75,8 @@ def plot_trajectories(trajectories):
     plt.ylim(bottom=0)
 
     # Plot horizontal lines for breakoff/pull altitudes, as well as the ground
-    plt.axhline(y=BREAKOFF_ALT, color='y', linestyle='dotted', alpha=0.7)
-    plt.axhline(y=PULL_ALT, color='r', linestyle='--', alpha=0.7)
+    plt.axhline(y=params.BREAKOFF_ALT, color='y', linestyle='dotted', alpha=0.7)
+    plt.axhline(y=params.PULL_ALT, color='r', linestyle='--', alpha=0.7)
     plt.axhline(y=0, color='k')
 
     # Initialize variables for min and max separation distance
@@ -95,8 +91,8 @@ def plot_trajectories(trajectories):
     for i, _ in enumerate(trajectories):
         # For each pair of jumpers, search for the x positions corresponding to 
         # the time at which the z position is closest to pull altitude
-        pull_x_0_idx = find_nearest(trajectories[i]['z'], PULL_ALT)
-        pull_x_1_idx = find_nearest(trajectories[i+1]['z'], PULL_ALT)
+        pull_x_0_idx = find_nearest(trajectories[i]['z'], params.PULL_ALT)
+        pull_x_1_idx = find_nearest(trajectories[i+1]['z'], params.PULL_ALT)
         pull_x_0 = trajectories[i]['x'][pull_x_0_idx]
         pull_x_1 = trajectories[i+1]['x'][pull_x_1_idx]
 
@@ -119,13 +115,13 @@ def plot_trajectories(trajectories):
     # Plot and label horizontal lines for min/max separation distance, using
     # the color red if distance is less than the ideal separation distance
     # (nominally 1000 feet) and green otherwise
-    min_color = 'r' if min_sep_dist < IDEAL_SEP else 'g'
-    plt.hlines(PULL_ALT+200, min_dist_0, min_dist_1, colors=min_color, label=str(min_sep_dist), linestyle='--')
-    plt.text((min_dist_0 + min_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(min_sep_dist)) + " ft", color=min_color)
+    min_color = 'r' if min_sep_dist < params.IDEAL_SEP else 'g'
+    plt.hlines(params.PULL_ALT+200, min_dist_0, min_dist_1, colors=min_color, label=str(min_sep_dist), linestyle='--')
+    plt.text((min_dist_0 + min_dist_1)/2 - const.BLAZE_IT, params.PULL_ALT+300, str(round(min_sep_dist)) + " ft", color=min_color)
     
-    max_color = 'r' if max_sep_dist < IDEAL_SEP else 'g'
-    plt.hlines(PULL_ALT+200, max_dist_0, max_dist_1, colors=max_color, label=str(max_sep_dist), linestyle='--')
-    plt.text((max_dist_0 + max_dist_1)/2 - const.BLAZE_IT, PULL_ALT+300, str(round(max_sep_dist)) + " ft", color=max_color)
+    max_color = 'r' if max_sep_dist < params.IDEAL_SEP else 'g'
+    plt.hlines(params.PULL_ALT+200, max_dist_0, max_dist_1, colors=max_color, label=str(max_sep_dist), linestyle='--')
+    plt.text((max_dist_0 + max_dist_1)/2 - const.BLAZE_IT, params.PULL_ALT+300, str(round(max_sep_dist)) + " ft", color=max_color)
 
     # Save figure to file and return 0
     plt.savefig("z_vs_x_all_groups.png")
@@ -136,11 +132,11 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
 
     # Array of time stamps for jump data in seconds
-    t = np.array(range(SIM_TIME))
+    t = np.array(range(params.SIM_TIME))
 
     # Create an array of Skydivers based on num_groups
     load = []
-    for i in range(num_groups):
+    for i in range(params.num_groups):
         load.append(Skydiver(m))
 
     # Compute x and z positions and velocities for each group on the load
@@ -210,3 +206,4 @@ if __name__ == "__main__":
     processes.append(sp.Popen("eog z_vs_x_all_groups.png &", shell=True))
 
     signal.pause()
+
