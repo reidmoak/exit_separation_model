@@ -6,6 +6,8 @@ import sys
 from termcolor import colored
 from types import ModuleType
 
+import winds
+
 class Params:
 
     def __init__(self):
@@ -15,8 +17,10 @@ class Params:
         self.IDEAL_SEP       = 1000        # Ideal exit separation (1000 feet)
         self.V_upper         = 10          # Uppers in knots
         self.V_air           = 70          # Jump run airspeed in knots 
+        self.jump_run        = 270         # Jump run direction in degrees
         self.t_sep           = 10          # Exit separation in seconds
-        self.num_groups      = 7           # Number of groups on the load
+        self.num_rw_groups   = 3           # Number of belly groups on the load
+        self.num_ff_groups   = 4           # Number of freefly groups on the load
         self.weight          = 160         # Average jumper exit weight in pounds
         
         self.setup()
@@ -33,8 +37,10 @@ class Params:
         var_help['weight'] = "Average jumper exit weight in pounds"
         var_help['V_upper'] = "Average winds aloft uppers in knots"
         var_help['V_air'] = "Jump run aircraft airspeed in knots"
+        var_help['jump_run'] = "Jump run direction in degrees"
         var_help['t_sep'] = "Exit separation in seconds"
-        var_help['num_groups'] = "Number of groups on the load"
+        var_help['num_rw_groups'] = "Number of belly groups on the load"
+        var_help['num_ff_groups'] = "Number of freefly groups on the load"
         print("")
         for i, key in enumerate(self.__dict__):
             print(f"{str(i+1) + ') ' + key:<20}{self.__dict__[key]:<10}{var_help[key]:<30}")

@@ -38,7 +38,8 @@ z0 = params.EXIT_ALT / const.M_TO_FT        # Initial Altitude in meters
 m = params.weight * const.LB_TO_KG          # Jumper mass in kg
 V_upper = params.V_upper * const.KT_TO_MPS  # Uppers in m/s (TODO: Make non-constant)
 Va = params.V_air * const.KT_TO_MPS         # Aircraft airspeed in m/s
-sim_time = params.num_groups * 20           # Simulation time in seconds
+num_groups = params.num_rw_groups + params.num_ff_groups
+sim_time = num_groups * 20           # Simulation time in seconds
 sim_time = 120                              # TODO: Figure out how to make this
                                             # dynamic, since the above line makes
                                             # the x limit of the plot very negative
@@ -66,6 +67,12 @@ def find_nearest(array, value):
         if np.abs((array[i-1] - value)) < np.abs(error):
             closest = i-1
     return closest
+
+def adjust_for_uppers(u, x, jump_run, winds):
+    for i in range(len(u)):
+        u = u 
+
+    return u, x
 
 def plot_trajectories(trajectories):
     plt.figure(1)
@@ -140,13 +147,13 @@ if __name__ == "__main__":
 
     # Create an array of Skydivers based on num_groups
     load = []
-    for i in range(params.num_groups):
+    for i in range(num_groups):
         load.append(Skydiver(m))
 
     # Compute x and z positions and velocities for each group on the load
     trajectories = []
     for i, jumper in enumerate(load):
-        if i < 3: # TODO: Change this to actually function correctly without being hardcoded
+        if i < params.num_rw_groups:
             A = const.A_BELLY
             CD = const.CD_BELLY
             Q = rho*A*CD
@@ -164,6 +171,7 @@ if __name__ == "__main__":
             z = jumper.compute_z(t, z0, Va, Q)
 
         # Account for drift due to uppers    
+        # u, x = adjust_for_uppers(u, x, params.jump_run, params.get_winds())
         u = u - V_upper
         x = x - V_upper*t
 
