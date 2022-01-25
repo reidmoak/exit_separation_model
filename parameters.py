@@ -6,8 +6,6 @@ import sys
 from termcolor import colored
 from types import ModuleType
 
-import winds
-
 class Params:
 
     def __init__(self):

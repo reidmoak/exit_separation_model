@@ -21,11 +21,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import subprocess as sp
 from termcolor import colored
+from scipy import integrate
 
 # Custom Module imports
 import const
+import winds as wind
 from parameters import Params
 from skydiver import Skydiver
+
+# NOTE NOTE NOTE NOTE NOTE NOTE NOTE DEBUG VARIABLE
+simple = True
+# NOTE NOTE NOTE NOTE NOTE NOTE NOTE 
 
 # Initialize params class, which will prompt user to setup parameter values
 params = Params()
@@ -44,9 +50,9 @@ sim_time = 120                              # TODO: Figure out how to make this
                                             # dynamic, since the above line makes
                                             # the x limit of the plot very negative
 
-Q = 0                                       # rho*A*CD, to keep code clean
-Vg = Va - V_upper                           # Aircraft groundspeed in m/s
-x_offset = params.t_sep * Vg                # Exit separation in meters
+#Q = 0                                       # rho*A*CD, to keep code clean
+#Vg = Va - V_upper                           # Aircraft groundspeed in m/s
+#x_offset = params.t_sep * Vg                # Exit separation in meters
 
 def signal_handler(sig, frame):
     print('\nYou pressed Ctrl+C, killing all display processes.')
@@ -68,10 +74,15 @@ def find_nearest(array, value):
             closest = i-1
     return closest
 
-def adjust_for_uppers(u, x, jump_run, winds):
-    for i in range(len(u)):
-        u = u 
+def adjust_for_uppers(u, x, z, jump_run, winds):
+    #print(winds)
+    for t in range(len(u)):
+        u_adj = wind.compute_wind_adj(jump_run, z[t], winds)[0]
+        u[t] = u[t] + u_adj
 
+        # TODO CONTINUE HERE, CHANGING INDEX ABOVE FROM 0 TO 1 MADE THINGS LOOK BETTER,
+        # THINKING IT MAY BE A SIGN ISSUE ON THE wind.compute_wind_adj SIDE
+        x[t] = x[t] + u_adj*t 
     return u, x
 
 def plot_trajectories(trajectories):
@@ -145,6 +156,21 @@ if __name__ == "__main__":
     # Array of time stamps for jump data in seconds
     t = np.array(range(sim_time))
 
+    # Initialize runtime variables
+    winds = wind.get_forecast()
+    print(winds)
+
+    Q = 0                                       # rho*A*CD, to keep code clean
+    V_upper_adj = wind.compute_wind_adj(params.jump_run, \
+                                        params.EXIT_ALT/const.M_TO_FT, \
+                                        winds)
+                                        
+    if simple is True:
+        Vg = Va - V_upper
+    else:
+        Vg = Va + V_upper_adj[0]                    # Aircraft groundspeed in m/s
+    x_offset = params.t_sep * Vg                # Exit separation in meters
+
     # Create an array of Skydivers based on num_groups
     load = []
     for i in range(num_groups):
@@ -171,9 +197,11 @@ if __name__ == "__main__":
             z = jumper.compute_z(t, z0, Va, Q)
 
         # Account for drift due to uppers    
-        # u, x = adjust_for_uppers(u, x, params.jump_run, params.get_winds())
-        u = u - V_upper
-        x = x - V_upper*t
+        if simple is True:
+            u = u - V_upper
+            x = x - V_upper*t
+        else:
+            u, x = adjust_for_uppers(u, x, z, params.jump_run, winds)
 
         trajectories.append({
             "u" : u*const.M_TO_FT,
