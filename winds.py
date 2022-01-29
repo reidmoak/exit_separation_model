@@ -41,8 +41,8 @@ def compass_rotate(winds):
             adj_winds[altitude] = (winds[altitude][0]-180, winds[altitude][1])
         else:
             print("HOW DID I GET HERE???")
-            exit(69)
-    return adj_winds
+            exit(69) # Nice
+    return adj_winds 
 
 # Return tuple of "x" and "y" component of winds aloft, relative to jump run
 # reference frame -- that is, let jump_run angle be 0 degrees, give relative
@@ -55,6 +55,8 @@ def compute_wind_adj(jump_run, altitude, winds):
     altitude = altitude * const.M_TO_FT    
 
     # Interpolate linearly between closest angles to get theta for altitude
+    # TODO: Make this less iterative...probably can have a function that looks
+    #       for the 2 closest altitudes and then interpolate between?
     if altitude >= 18000:
         theta = np.deg2rad(np.abs(winds['18000'][0] - jump_run))
         speed = winds['18000'][1]
@@ -106,12 +108,14 @@ def print_winds(winds, aircraft, exit_alt):
     deg_total = 0
     count = 0
     print("Winds Aloft for ACY:\n")
-    for altitude in winds:
+    for altitude in reversed(winds):
         print("\t" + str(altitude) + " ft: " + str(winds[altitude][1])+ " kts from " \
                 + str(winds[altitude][0]) + degree_sign)
         deg_total += winds[altitude][0]
         count += 1
 
+    # TODO: Make this not hardcoded -- if EXIT_ALT is changed from 13500 to something else,
+    #       the code below will not work
     exit_uppers = np.interp(exit_alt, [12000, 18000], [winds['12000'][1], winds['18000'][1]])
 
     print("")
@@ -147,7 +151,7 @@ def exit_sep_chart(exit_uppers, aircraft):
         15: 40,
         10: 60,
         5: 119
-    }.get(5 * round(V_g/5))
+    }.get(5 * round(V_g/5)) # Need to round ground speed to nearest mult of 5
 
     print("\tAircraft ground speed: " + colored(str(V_g) + " kts", 'magenta'))
     print("\tRecommended exit sep: " + colored(str(exit_sep) + " seconds", 'magenta'))

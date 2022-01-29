@@ -8,8 +8,6 @@
 # TODO: Add option to import data from CSV file of the load, including number
 #       of groups, discipline for each group, average mass of the group, etc.
 # TODO: Add in y[t] to be able to create 3D plots
-# TODO: Add higher up main menu, where you can do other things besides change
-#       variables, like print out winds aloft average speed/direction
 # TODO: Look into whether I should make rho non-constant -- how much does 
 #       air density change with altitude?
 

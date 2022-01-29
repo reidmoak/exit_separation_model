@@ -25,7 +25,6 @@ class Params:
         # self.setup()
 
 
-    # TODO: Have this print out units, explanations of the variables, etc.
     def show(self, numbered):
         # NOTE: Unfortunately, not sure how I would make this not be hard-coded
         var_help = {}
