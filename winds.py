@@ -101,5 +101,9 @@ def compute_wind_adj(jump_run, altitude, winds):
     return (speed*np.cos(theta), speed*np.sin(theta))
 
 def print_winds(winds):
+    degree_sign = u"\N{DEGREE SIGN}"
+    print("\nWinds Aloft for ACY:\n")
     for altitude in winds:
-        print(winds[altitude])
+        print(str(altitude) + " ft: " + str(winds[altitude][1])+ " kts from " \
+                + str(winds[altitude][0]) + degree_sign)
+
