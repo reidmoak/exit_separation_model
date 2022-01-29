@@ -3,14 +3,11 @@
 # TODO: Figure out equation for tracking from 5000 to 3500 feet (wing with a
 #       constant angle with respect to the ground with an initial vert/horiz
 #       speed based on whatever it is at z = 5000)
-# TODO: Add more configurability with respect to group types (ability to change
-#       number of belly fliers, freefliers, etc.)
 # TODO: Verify/fix freefly CD and A values to reflect real data
-# TODO: Add more granular winds aloft layers to reflect different wind speeds
-#       at different altitudes (V_upper)
 # TODO: Clean up / Comment code
 # TODO: Add option to import data from CSV file of the load, including number
 #       of groups, discipline for each group, average mass of the group, etc.
+# TODO: Add in y[t] to be able to create 3D plots
 
 # Python Built-In imports
 import time
@@ -28,10 +25,6 @@ import const
 import winds as wind
 from parameters import Params
 from skydiver import Skydiver
-
-# NOTE NOTE NOTE NOTE NOTE NOTE NOTE DEBUG VARIABLE
-simple = True
-# NOTE NOTE NOTE NOTE NOTE NOTE NOTE 
 
 # Initialize params class, which will prompt user to setup parameter values
 params = Params()
@@ -78,10 +71,13 @@ def adjust_for_uppers(u, x, z, jump_run, winds):
     #print(winds)
     for t in range(len(u)):
         u_adj = wind.compute_wind_adj(jump_run, z[t], winds)[0]
-        u[t] = u[t] + u_adj
 
-        # TODO CONTINUE HERE, CHANGING INDEX ABOVE FROM 0 TO 1 MADE THINGS LOOK BETTER,
-        # THINKING IT MAY BE A SIGN ISSUE ON THE wind.compute_wind_adj SIDE
+        # u (x velocity) adjustment DEBUG
+        uadj_debug = False
+        if uadj_debug is True:
+            print("altitude = " + str(z[t]*const.M_TO_FT) + " u[t] = " + str(u[t]) + ", u_adj = " + str(u_adj))
+        
+        u[t] = u[t] + u_adj
         x[t] = x[t] + u_adj*t 
     return u, x
 
@@ -138,12 +134,16 @@ def plot_trajectories(trajectories):
     # the color red if distance is less than the ideal separation distance
     # (nominally 1000 feet) and green otherwise
     min_color = 'r' if min_sep_dist < params.IDEAL_SEP else 'g'
-    plt.hlines(params.PULL_ALT+200, min_dist_0, min_dist_1, colors=min_color, label=str(min_sep_dist), linestyle='--')
-    plt.text((min_dist_0 + min_dist_1)/2 - const.BLAZE_IT, params.PULL_ALT+300, str(round(min_sep_dist)) + " ft", color=min_color)
+    plt.hlines(params.PULL_ALT+200, min_dist_0, min_dist_1, colors=min_color, \
+               label=str(min_sep_dist), linestyle='--')
+    plt.text((min_dist_0 + min_dist_1)/2 - const.BLAZE_IT, params.PULL_ALT+300, \
+             str(round(min_sep_dist)) + " ft", color=min_color)
     
     max_color = 'r' if max_sep_dist < params.IDEAL_SEP else 'g'
-    plt.hlines(params.PULL_ALT+200, max_dist_0, max_dist_1, colors=max_color, label=str(max_sep_dist), linestyle='--')
-    plt.text((max_dist_0 + max_dist_1)/2 - const.BLAZE_IT, params.PULL_ALT+300, str(round(max_sep_dist)) + " ft", color=max_color)
+    plt.hlines(params.PULL_ALT+200, max_dist_0, max_dist_1, colors=max_color, \
+               label=str(max_sep_dist), linestyle='--')
+    plt.text((max_dist_0 + max_dist_1)/2 - const.BLAZE_IT, params.PULL_ALT+300, \
+             str(round(max_sep_dist)) + " ft", color=max_color)
 
     # Save figure to file and return 0
     plt.savefig("z_vs_x_all_groups.png")
@@ -158,14 +158,17 @@ if __name__ == "__main__":
 
     # Initialize runtime variables
     winds = wind.get_forecast()
-    print(winds)
+    #print(winds)
+    wind.print_winds(winds)
 
     Q = 0                                       # rho*A*CD, to keep code clean
     V_upper_adj = wind.compute_wind_adj(params.jump_run, \
                                         params.EXIT_ALT/const.M_TO_FT, \
                                         winds)
-                                        
-    if simple is True:
+
+    # Winds Aloft DEBUG - makes them constant at 180 from jump run
+    simple_winds = False
+    if simple_winds is True:
         Vg = Va - V_upper
     else:
         Vg = Va + V_upper_adj[0]                    # Aircraft groundspeed in m/s
@@ -197,7 +200,7 @@ if __name__ == "__main__":
             z = jumper.compute_z(t, z0, Va, Q)
 
         # Account for drift due to uppers    
-        if simple is True:
+        if simple_winds is True:
             u = u - V_upper
             x = x - V_upper*t
         else:
@@ -209,12 +212,13 @@ if __name__ == "__main__":
             "x" : x*const.M_TO_FT,
             "z" : z*const.M_TO_FT
         })
-        
-    # print(trajectories)
-    # DEBUG = 0
-    # if DEBUG == 1:
-    #    for i, z in enumerate(trajectories[0]['z']):
-    #        print("time = " + str(i) + " sec, Altitude = " + str(z) + " ft")
+  
+    # Trajectory DEBUG
+    traj_debug = False
+    if traj_debug is True:
+        print(trajectories)
+        for i, z in enumerate(trajectories[0]['z']):
+            print("time = " + str(i) + " sec, Altitude = " + str(z) + " ft")
 
     ###################
     #      PLOTS      #
