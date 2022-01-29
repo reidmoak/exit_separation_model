@@ -3,6 +3,7 @@
 from urllib.request import urlopen
 import numpy as np
 import const
+from termcolor import colored
 
 def get_ACY_forecast(url):
     for line in file:
@@ -100,10 +101,56 @@ def compute_wind_adj(jump_run, altitude, winds):
         
     return (speed*np.cos(theta), speed*np.sin(theta))
 
-def print_winds(winds):
+def print_winds(winds, aircraft, exit_alt):
     degree_sign = u"\N{DEGREE SIGN}"
-    print("\nWinds Aloft for ACY:\n")
+    deg_total = 0
+    count = 0
+    print("Winds Aloft for ACY:\n")
     for altitude in winds:
-        print(str(altitude) + " ft: " + str(winds[altitude][1])+ " kts from " \
+        print("\t" + str(altitude) + " ft: " + str(winds[altitude][1])+ " kts from " \
                 + str(winds[altitude][0]) + degree_sign)
+        deg_total += winds[altitude][0]
+        count += 1
+
+    exit_uppers = np.interp(exit_alt, [12000, 18000], [winds['12000'][1], winds['18000'][1]])
+
+    print("")
+    exit_sep = exit_sep_chart(exit_uppers, aircraft)
+    deg_avg = round(float(deg_total)/count)
+    print("\tSuggested jump run: " + colored(str(deg_avg) + degree_sign, 'magenta'))
+
+    return deg_avg, exit_sep 
+
+def exit_sep_chart(exit_uppers, aircraft):
+    # Using values from https://www.dropzone.com/articles/safety/exit-separation-r876/
+    if "Caravan" in aircraft:
+        V_tas = 70
+    V_g = V_tas - exit_uppers
+    exit_sep = {
+        100: 6,
+        95: 7,
+        90: 7,
+        85: 7,
+        80: 8, 
+        75: 8,
+        70: 9,
+        65: 10,
+        60: 10,
+        55: 11,
+        50: 12,
+        45: 14,
+        40: 15,
+        35: 17,
+        30: 20,
+        25: 24,
+        20: 30,
+        15: 40,
+        10: 60,
+        5: 119
+    }.get(5 * round(V_g/5))
+
+    print("\tAircraft ground speed: " + colored(str(V_g) + " kts", 'magenta'))
+    print("\tRecommended exit sep: " + colored(str(exit_sep) + " seconds", 'magenta'))
+
+    return exit_sep
 

@@ -135,6 +135,62 @@ def plot_trajectories(trajectories):
     plt.savefig("z_vs_x_all_groups.png")
     return 0
 
+def main_menu(winds):
+    options = []
+    options.append("Print winds aloft (ACY)")
+    options.append("Print simulation parameters")
+    options.append("Modify simulation parameters")
+    options.append("Enable debug options")
+    options.append("Set jump run and exit separation to optimal values")
+    options.append(colored("Run simulation", 'yellow'))
+
+    rec_jump_rum = None
+    rec_t_sep = None
+
+    def print_title():
+        os.system('clear')
+        print(colored("EXIT SEPARATION MODEL\n", 'green'))
+    print_title()
+
+    while(True):
+        for i, opt in enumerate(options):
+            print(str(i+1) + ") " + opt)
+        ans = input("\nEnter selection: ")
+        try:
+            ans = int(ans)
+            if ans < 0 or ans > len(options):
+                print_title()
+                print(colored("Invalid entry, input must be between 1 and " + \
+                              str(len(options)) + ".\n", 'red'))
+            elif ans == 1: 
+                print_title()
+                rec_jump_run, rec_t_sep = wind.print_winds(winds, params.aircraft, params.EXIT_ALT)
+                print("")
+            elif ans == 2:
+                print_title()
+                params.show(False)
+            elif ans == 3:
+                params.setup()
+                print_title()
+            elif ans == 4:
+                print_title()
+                print(colored("Option 4 is currently under construction...\n", 'cyan'))
+            elif ans == 5:
+                if rec_jump_run is None or rec_t_sep is None:
+                    rec_jump_run, rec_t_sep = wind.print_winds(winds, params.aircraft, params.EXIT_ALT)
+                params.jump_run = rec_jump_run
+                params.t_sep = rec_t_sep
+                print_title()
+                params.show(False)
+            elif ans == 6:
+                return
+        except ValueError:
+            print_title()
+            print(colored("Invalid entry, input must be a number.\n", 'red'))
+            continue
+            
+
+
 if __name__ == "__main__":
     # Initialize params class, which will prompt user to setup parameter values
     params = Params()
@@ -142,11 +198,26 @@ if __name__ == "__main__":
     # Initialize signal handler
     signal.signal(signal.SIGINT, signal_handler)
 
+    # Winds
+    winds = wind.get_forecast()
+    wind.print_winds(winds, params.aircraft, params.EXIT_ALT)
+
+    # Aircraft speeds TODO: Verify these!
+    aircraft_speeds = {
+        "Caravan"   : 70,
+        "Otter"     : 60,
+        "Skyvan"    : 90,
+        "Cessna 182": 55
+    }
+
+    main_menu(winds)
+
     # Initialize runtime variables
     Q = 0                                       # rho*A*CD, to keep code clean
     z0 = params.EXIT_ALT / const.M_TO_FT        # Initial Altitude in meters
     m = params.weight * const.LB_TO_KG          # Jumper mass in kg
-    Va = params.V_air * const.KT_TO_MPS         # Aircraft airspeed in m/s
+    Va = aircraft_speeds.get(params.aircraft) \
+        * const.KT_TO_MPS                       # Aircraft airspeed in m/s   
     num_groups = params.num_rw_groups + params.num_ff_groups
     sim_time = num_groups * 20                  # Simulation time in seconds
     sim_time = 120                              # TODO: Figure out how to make 
@@ -156,10 +227,6 @@ if __name__ == "__main__":
 
     # Array of time stamps for jump data in seconds
     t = np.array(range(sim_time))
-
-    # Winds
-    winds = wind.get_forecast()
-    wind.print_winds(winds)
 
     # Winds Aloft DEBUG - makes them constant at 180 from jump run
     simple_winds = False
