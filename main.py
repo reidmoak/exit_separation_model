@@ -8,8 +8,10 @@
 # TODO: Add option to import data from CSV file of the load, including number
 #       of groups, discipline for each group, average mass of the group, etc.
 # TODO: Add in y[t] to be able to create 3D plots
-# TODO: Look into whether I should make rho non-constant -- how much does 
-#       air density change with altitude?
+# TODO: Make rho a function of altitude -- would need to make a lookup table in 
+#       skydiver.py and make it rho[z] with interpolation. Might be difficult,
+#       but I guess I can just compute z[t] first, using z[t-1] as the index 
+#       for rho[z] -- so z[t] = f(rho[z[t-1]]). Do this on a new branch probs
 
 # Python Built-In imports
 import time
