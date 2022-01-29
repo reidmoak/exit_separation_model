@@ -3,7 +3,6 @@
 import const
 import os
 import sys
-import numpy as np
 from termcolor import colored
 from types import ModuleType
 
@@ -21,12 +20,9 @@ class Params:
         self.aircraft        = "Caravan"   # Type of aircraft
         self.jump_run        = 270         # Jump run direction in degrees
         self.t_sep           = 10          # Exit separation in seconds
-        
-        # self.setup()
-
 
     def show(self, numbered):
-        # NOTE: Unfortunately, not sure how I would make this not be hard-coded
+        # Variable descriptions (kind of have to be hardcoded...)
         var_help = {}
         var_help['EXIT_ALT'] = "Exit altitude in feet"
         var_help['BREAKOFF_ALT'] = "Breakoff altitude in feet"
@@ -39,6 +35,7 @@ class Params:
         var_help['t_sep'] = "Exit separation in seconds"
         var_help['num_rw_groups'] = "Number of belly groups on the load"
         var_help['num_ff_groups'] = "Number of freefly groups on the load"
+
         if numbered is True:
             for i, key in enumerate(self.__dict__):
                 if 'jump_run' in key or 't_sep' in key:
@@ -102,6 +99,8 @@ class Params:
                         except ValueError:
                             os.system('clear')
                             print(colored("Invalid entry, input must be a number.\n", 'red'))
+                            if "aircraft" in keys[index]:
+                                print_aircrafts()
                             ans = input("Enter new value for " + keys[index] + ": ")
                 except ValueError:
                     os.system('clear')
@@ -115,5 +114,5 @@ class Params:
             os.system('clear')
         
         # For printing purposes, mod jump_run by 360 
-        if np.abs(self.jump_run) >= 360:
+        if self.jump_run >= 360 or self.jump_run < 0:
             self.jump_run = self.jump_run % 360
