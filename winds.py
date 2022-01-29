@@ -17,7 +17,7 @@ file = urlopen(url)
 data_points = get_ACY_forecast(file).strip().split(' ')
 
 # Get 3000, 6000, 9000, 12000, and 18000 feet forecasts
-altitudes = ['3000', '6000', '9000', '12000', '18000']
+altitudes = [3000, 6000, 9000, 12000, 18000]
 forecast = {}
 for i, val in enumerate(data_points):
     if i < len(altitudes): forecast[altitudes[i]] = data_points[i+1]
@@ -55,44 +55,44 @@ def compute_wind_adj(jump_run, altitude, winds):
     # TODO: Make this less iterative...probably can have a function that looks
     #       for the 2 closest altitudes and then interpolate between?
     if altitude >= 18000:
-        theta = np.deg2rad(np.abs(winds['18000'][0] - jump_run))
-        speed = winds['18000'][1]
+        theta = np.deg2rad(np.abs(winds[18000][0] - jump_run))
+        speed = winds[18000][1]
     elif altitude < 18000:
         theta_w = np.interp(altitude, [12000, 18000], \
-            [winds['12000'][0], winds['18000'][0]])
+            [winds[12000][0], winds[18000][0]])
         theta = np.deg2rad(np.abs(theta_w - jump_run))
         speed = np.interp(altitude, [12000, 18000], \
-            [winds['12000'][1], winds['18000'][1]])
+            [winds[12000][1], winds[18000][1]])
     elif altitude == 12000:
-        theta = np.deg2rad(np.abs(winds['12000'][0] - jump_run))
-        speed = winds['12000'][1]
+        theta = np.deg2rad(np.abs(winds[12000][0] - jump_run))
+        speed = winds[12000][1]
     elif altitude < 12000:
         theta_w = np.interp(altitude, [9000, 12000], \
-            [winds['9000'][0], winds['12000'][0]])
+            [winds[9000][0], winds[12000][0]])
         theta = np.deg2rad(np.abs(theta_w - jump_run))
         speed = np.interp(altitude, [9000, 12000], \
-            [winds['9000'][1], winds['12000'][1]])
+            [winds[9000][1], winds[12000][1]])
     elif altitude == 9000:
-        theta = np.deg2rad(np.abs(winds['9000'][0] - jump_run))
-        speed = winds['9000'][1]
+        theta = np.deg2rad(np.abs(winds[9000][0] - jump_run))
+        speed = winds[9000][1]
     elif altitude < 9000:
         theta_w = np.interp(altitude, [6000, 9000], \
-            [winds['6000'][0], winds['9000'][0]])
+            [winds[6000][0], winds[9000][0]])
         theta = np.deg2rad(np.abs(theta_w - jump_run))
         speed = np.interp(altitude, [6000, 9000], \
-            [winds['6000'][1], winds['9000'][1]])
+            [winds[6000][1], winds[9000][1]])
     elif altitude == 6000: # Don't want to lose precision from interpolating...
-        theta = np.deg2rad(np.abs(winds['6000'][0] - jump_run))
-        speed = winds['6000'][1]
+        theta = np.deg2rad(np.abs(winds[6000][0] - jump_run))
+        speed = winds[6000][1]
     elif altitude < 6000:
         theta_w = np.interp(altitude, [3000, 6000], \
-            [winds['3000'][0], winds['6000'][0]])
+            [winds[3000][0], winds[6000][0]])
         theta = np.deg2rad(np.abs(theta_w - jump_run))
         speed = np.interp(altitude, [3000, 6000], \
-            [winds['3000'][1], winds['6000'][1]])
+            [winds[3000][1], winds[6000][1]])
     elif altitude <= 3000:
-        theta = np.deg2rad(np.abs(winds['3000'][0] - jump_run))
-        speed = winds['3000'][1]
+        theta = np.deg2rad(np.abs(winds[3000][0] - jump_run))
+        speed = winds[3000][1]
 
     #print("altitude = " + str(altitude) + ", theta = " + str(np.rad2deg(theta)) + ", speed = " + str(speed))
 
@@ -113,7 +113,7 @@ def print_winds(winds, aircraft, exit_alt):
 
     # TODO: Make this not hardcoded -- if EXIT_ALT is changed from 13500 to something else,
     #       the code below will not work
-    exit_uppers = np.interp(exit_alt, [12000, 18000], [winds['12000'][1], winds['18000'][1]])
+    exit_uppers = np.interp(exit_alt, [12000, 18000], [winds[12000][1], winds[18000][1]])
 
     print("")
     exit_sep = exit_sep_chart(exit_uppers, aircraft)

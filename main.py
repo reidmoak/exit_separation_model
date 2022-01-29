@@ -281,7 +281,7 @@ if __name__ == "__main__":
         })
   
     # Trajectory DEBUG
-    traj_debug = True
+    traj_debug = False
     if traj_debug is True:
         #print(trajectories)
         for i, z in enumerate(trajectories[0]['z']):
