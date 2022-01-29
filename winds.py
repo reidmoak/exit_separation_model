@@ -51,9 +51,6 @@ def compute_wind_adj(jump_run, altitude, winds):
     # Adjust winds to be in same reference as jump run angle
     winds = compass_rotate(winds)
 
-    # Change altitude to feet (TODO: how to avoid losing precision?)
-    altitude = altitude * const.M_TO_FT    
-
     # Interpolate linearly between closest angles to get theta for altitude
     # TODO: Make this less iterative...probably can have a function that looks
     #       for the 2 closest altitudes and then interpolate between?
@@ -99,7 +96,7 @@ def compute_wind_adj(jump_run, altitude, winds):
 
     #print("altitude = " + str(altitude) + ", theta = " + str(np.rad2deg(theta)) + ", speed = " + str(speed))
 
-    speed = speed * const.KT_TO_MPS
+    #speed = speed * const.KT_TO_MPS
         
     return (speed*np.cos(theta), speed*np.sin(theta))
 

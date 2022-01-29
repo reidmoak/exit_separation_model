@@ -30,7 +30,7 @@ from skydiver import Skydiver
 
 
 # Special Parameters
-rho = 1.0 # Air density (NOTE: will eventually not be constant)
+rho = 18.436 * (10**-4) # Air density in slugs/ft^3
 
 def signal_handler(sig, frame):
     print('\nYou pressed Ctrl+C, killing all display processes.')
@@ -59,7 +59,7 @@ def adjust_for_uppers(u, x, z, jump_run, winds):
         # u (x velocity) adjustment DEBUG
         uadj_debug = False
         if uadj_debug is True:
-            print("altitude = " + str(z[t]*const.M_TO_FT) + " u[t] = " + str(u[t]) + ", u_adj = " + str(u_adj))
+            print("altitude = " + str(z[t]) + " u[t] = " + str(u[t]) + ", u_adj = " + str(u_adj))
         
         u[t] = u[t] + u_adj
         x[t] = x[t] + u_adj*t 
@@ -174,8 +174,7 @@ def main_menu(winds):
                 print_title()
                 print(colored("Option 4 is currently under construction...\n", 'cyan'))
             elif ans == 5:
-                if rec_jump_run is None or rec_t_sep is None:
-                    rec_jump_run, rec_t_sep = wind.print_winds(winds, params.aircraft, params.EXIT_ALT)
+                rec_jump_run, rec_t_sep = wind.print_winds(winds, params.aircraft, params.EXIT_ALT)
                 params.jump_run = rec_jump_run
                 params.t_sep = rec_t_sep
                 print_title()
@@ -198,7 +197,6 @@ if __name__ == "__main__":
 
     # Winds
     winds = wind.get_forecast()
-    wind.print_winds(winds, params.aircraft, params.EXIT_ALT)
 
     # Aircraft speeds TODO: Verify these!
     aircraft_speeds = {
@@ -212,10 +210,9 @@ if __name__ == "__main__":
 
     # Initialize runtime variables
     Q = 0                                       # rho*A*CD, to keep code clean
-    z0 = params.EXIT_ALT / const.M_TO_FT        # Initial Altitude in meters
-    m = params.weight * const.LB_TO_KG          # Jumper mass in kg
-    Va = aircraft_speeds.get(params.aircraft) \
-        * const.KT_TO_MPS                       # Aircraft airspeed in m/s   
+    z0 = params.EXIT_ALT                        # Initial Altitude in feet
+    m = params.weight / const.g                 # Jumper mass in slugs
+    Va = aircraft_speeds.get(params.aircraft)   # Aircraft airspeed in knots
     num_groups = params.num_rw_groups + params.num_ff_groups
     sim_time = num_groups * 20                  # Simulation time in seconds
     sim_time = 120                              # TODO: Figure out how to make 
@@ -229,39 +226,43 @@ if __name__ == "__main__":
     # Winds Aloft DEBUG - makes them constant at 180 from jump run
     simple_winds = False
     if simple_winds is True:
-        V_upper = params.V_upper * const.KT_TO_MPS  # Constat uppers in m/s
-        Vg = Va - V_upper # Aircraft groundspeed in m/s
+        V_upper = params.V_upper            # Constant uppers in knots
+        Vg = Va - V_upper                   # Aircraft groundspeed in knots
     else:
-        V_upper_adj = wind.compute_wind_adj(params.jump_run, \
-                                            params.EXIT_ALT/const.M_TO_FT, \
-                                            winds)
-        Vg = Va + V_upper_adj[0]        
-        x_offset = params.t_sep * Vg    # Exit separation in meters
+        V_upper_adj = wind.compute_wind_adj(params.jump_run, params.EXIT_ALT, winds)
+        Vg = Va + V_upper_adj[0]            # Aircraft ground speed in knots
+
+    x_offset = params.t_sep * (Vg*const.KT_TO_FPS) # Exit separation in feet
+
 
     # Create an array of Skydivers based on num_groups
     load = []
     for i in range(num_groups):
         load.append(Skydiver(m))
 
-    # Compute x and z positions and velocities for each group on the load
+    # Compute x and z positions and velocities for each group on the load,
+    # converting speeds from knots to m/s first
     trajectories = []
     for i, jumper in enumerate(load):
         if i < params.num_rw_groups:
             A = const.A_BELLY
             CD = const.CD_BELLY
             Q = rho*A*CD
-            u = jumper.compute_u(t, Va, Q)
-            w = jumper.compute_w(t, Va, Q)
-            x = jumper.compute_x(t, i*x_offset, Va, Q)
-            z = jumper.compute_z(t, z0, Va, Q)
+            u = jumper.compute_u(t, Va*const.KT_TO_FPS, Q)
+            w = jumper.compute_w(t, Va*const.KT_TO_FPS, Q)
+            x = jumper.compute_x(t, i*x_offset, Va*const.KT_TO_FPS, Q)
+            z = jumper.compute_z(t, z0, Va*const.KT_TO_FPS, Q)
         else:
             A = const.A_HD
             CD = const.CD_HD
             Q = rho*A*CD
-            u = jumper.compute_u(t, Va, Q)
-            w = jumper.compute_w(t, Va, Q)
-            x = jumper.compute_x(t, i*x_offset, Va, Q)
-            z = jumper.compute_z(t, z0, Va, Q)
+            u = jumper.compute_u(t, Va*const.KT_TO_FPS, Q)
+            w = jumper.compute_w(t, Va*const.KT_TO_FPS, Q)
+            x = jumper.compute_x(t, i*x_offset, Va*const.KT_TO_FPS, Q)
+            z = jumper.compute_z(t, z0, Va*const.KT_TO_FPS, Q)
+
+        # Convert speed back to knots for adjusting for winds
+        u = u / const.KT_TO_FPS
 
         # Account for drift due to uppers    
         if simple_winds is True:
@@ -271,18 +272,24 @@ if __name__ == "__main__":
             u, x = adjust_for_uppers(u, x, z, params.jump_run, winds)
 
         trajectories.append({
-            "u" : u*const.M_TO_FT,
-            "w" : w*const.M_TO_FT,
-            "x" : x*const.M_TO_FT,
-            "z" : z*const.M_TO_FT
+            "u" : u*const.KT_TO_FPS*const.FPS_TO_MPH,
+            "w" : w*const.FPS_TO_MPH,
+            "x" : x,
+            "z" : z
         })
   
     # Trajectory DEBUG
-    traj_debug = False
+    traj_debug = True
     if traj_debug is True:
-        print(trajectories)
+        #print(trajectories)
         for i, z in enumerate(trajectories[0]['z']):
             print("time = " + str(i) + " sec, Altitude = " + str(z) + " ft")
+            if z < 0: 
+                break
+        for i, z in enumerate(trajectories[len(trajectories)-1]['z']):
+            print("time = " + str(i) + " sec, Altitude = " + str(z) + " ft")
+            if z < 0:
+                break
 
     ###################
     #      PLOTS      #
@@ -294,7 +301,7 @@ if __name__ == "__main__":
 
     # Single jumper vertical speed - TODO: Make this its own function (with horiz speed)
     plt.figure(2)
-    plt.plot(t, trajectories[0]['w']*const.MPS_TO_MPH)
+    plt.plot(t, trajectories[0]['w'])
     plt.grid(alpha=.4,linestyle='--')
     plt.title("Vertical Speed vs. Time (First Group)")
     plt.xlabel("Time (s)")
@@ -303,12 +310,30 @@ if __name__ == "__main__":
 
     # Single jumper horizontal speed
     plt.figure(3)
-    plt.plot(t, trajectories[0]['u']*const.MPS_TO_MPH)
+    plt.plot(t, trajectories[0]['u'])
     plt.grid(alpha=.4,linestyle='--')
     plt.title("Horizontal Speed vs. Time (First Group)")
     plt.xlabel("Time (s)")
     plt.ylabel("Horizontal Speed (mph)")
     plt.savefig("horiz_speed_first_grp.png")
+
+    # Single jumper vertical speed - TODO: Make this its own function (with horiz speed)
+    plt.figure(4)
+    plt.plot(t, trajectories[len(trajectories)-1]['w'])
+    plt.grid(alpha=.4,linestyle='--')
+    plt.title("Vertical Speed vs. Time (Last Group)")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Vertical Speed (mph)")
+    plt.savefig("vert_speed_last_grp.png")
+
+    # Single jumper horizontal speed
+    plt.figure(5)
+    plt.plot(t, trajectories[len(trajectories)-1]['u'])
+    plt.grid(alpha=.4,linestyle='--')
+    plt.title("Horizontal Speed vs. Time (Last Group)")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Horizontal Speed (mph)")
+    plt.savefig("horiz_speed_last_grp.png")
 
     # Open one of the plots with eog (use arrows to see other PNGs)
     processes.append(sp.Popen("eog z_vs_x_all_groups.png &", shell=True))
