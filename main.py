@@ -6,6 +6,9 @@
 # TODO: Verify/fix freefly CD and A values to reflect real data
 #       NOTE: This will only be possible once I have reliable flysight data for
 #       a solo belly jump with known parameters (weight, winds, etc.)
+# TODO: Verify that I am doing x calculation correctly, using trapezoid rule of
+#       u[t] rather than the compute_x function, which only calculates x in the
+#       air reference frame
 # TODO: Add option to import data from CSV file of the load, including number
 #       of groups, discipline for each group, average mass of the group, etc.
 # TODO: Add in y[t] to be able to create 3D plots
@@ -13,9 +16,6 @@
 #       skydiver.py and make it rho[z] with interpolation. Might be difficult,
 #       but I guess I can just compute z[t] first, using z[t-1] as the index 
 #       for rho[z] -- so z[t] = f(rho[z[t-1]]). Do this on a new branch probs
-# TODO: Verify that I am doing x calculation correctly, using trapezoid rule of
-#       u[t] rather than the compute_x function, which only calculates x in the
-#       air reference frame
 # TODO: Clean up / Comment code
 
 # Python Built-In imports
@@ -60,13 +60,20 @@ def find_nearest(array, value):
     return closest
 
 def adjust_for_uppers(u, x, z, jump_run, winds):
+    # Create v[t] and y[t]
+    v = np.array(range(len(u)), dtype='f')
+    y = np.array(range(len(u)), dtype='f')
+
     for t in range(len(u)):
         # Get velocity adjustment based on velocity of air column at given t, in ft/s
-        u_adj = wind.compute_wind_adj(jump_run, z[t], winds)[0] * const.KT_TO_FPS
+        u_adj = wind.compute_wind_adj(jump_run, z[t], winds)[0]*const.KT_TO_FPS
+        v_adj = wind.compute_wind_adj(jump_run, z[t], winds)[1]*const.KT_TO_FPS
+        #print("v_adj[" + str(t) + " sec] = " + str(round(v_adj, 3)))
 
         # Adjust u[t] to be GROUND speed over time, adjusting for movement of 
         # wind column, which is captured by u_adj
         u[t] = u[t] + u_adj
+        v[t] = v_adj
 
         # At time zero, x is 0, so no adjustment needs to be made
         if t == 0:
@@ -76,8 +83,9 @@ def adjust_for_uppers(u, x, z, jump_run, winds):
         # which is just the area under the ground velocity curve
         # np.trapz below is same as u[t-1]*(1 second) + (u[t] - u[t-1])/2
         x[t] = x[t-1] + np.trapz([u[t-1], u[t]], [t-1, t], axis=0) 
+        y[t] = y[t-1] + np.trapz([v[t-1], v[t]], [t-1, t], axis=0)
 
-    return u, x
+    return u, x, v, y
 
 def plot_trajectories(trajectories):
     plt.figure(1)
@@ -290,12 +298,14 @@ if __name__ == "__main__":
             u = u - V_upper*const.KT_TO_FPS
             x = x - V_upper*const.KT_TO_FPS*t # Okay since V_upper is constant
         else:
-            u, x = adjust_for_uppers(u, x, z, params.jump_run, winds)
+            u, x, v, y = adjust_for_uppers(u, x, z, params.jump_run, winds)
 
         trajectories.append({
-            "u" : u*const.KT_TO_FPS*const.FPS_TO_MPH, # Convert to MPH for plots
-            "w" : w*const.FPS_TO_MPH,                 # Convert to MPH for plots
+            "u" : u*const.FPS_TO_MPH, # Convert to MPH for plots
+            "v" : v*const.FPS_TO_MPH, # Convert to MPH for plots
+            "w" : w*const.FPS_TO_MPH, # Convert to MPH for plots
             "x" : x,
+            "y" : y,
             "z" : z
         })
   
@@ -329,6 +339,10 @@ if __name__ == "__main__":
     generic_plot(t, trajectories[0]['u'], 3, \
                  "Horizontal Speed vs. Time (First Group)", "Time (s)", \
                  "Horizontal Speed (mph)", "horiz_speed_first_grp.png")
+
+    generic_plot(trajectories[0]['x'], trajectories[0]['y'], 6, \
+                 "y vs. x (First Group)", "x (feet)", \
+                 "y (feet)", "x_vs_y_first_grp.png")
 
     # Single jumper vertical speed - Freefly group
     generic_plot(t, trajectories[len(trajectories)-1]['w'], 4, \

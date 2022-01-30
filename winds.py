@@ -57,7 +57,7 @@ def compute_wind_adj(jump_run, altitude, winds):
     if altitude >= 18000:
         theta = np.deg2rad(np.abs(winds[18000][0] - jump_run))
         speed = winds[18000][1]
-    elif altitude < 18000:
+    elif altitude > 12000:
         theta_w = np.interp(altitude, [12000, 18000], \
             [winds[12000][0], winds[18000][0]])
         theta = np.deg2rad(np.abs(theta_w - jump_run))
@@ -66,7 +66,7 @@ def compute_wind_adj(jump_run, altitude, winds):
     elif altitude == 12000:
         theta = np.deg2rad(np.abs(winds[12000][0] - jump_run))
         speed = winds[12000][1]
-    elif altitude < 12000:
+    elif altitude > 9000:
         theta_w = np.interp(altitude, [9000, 12000], \
             [winds[9000][0], winds[12000][0]])
         theta = np.deg2rad(np.abs(theta_w - jump_run))
@@ -75,7 +75,7 @@ def compute_wind_adj(jump_run, altitude, winds):
     elif altitude == 9000:
         theta = np.deg2rad(np.abs(winds[9000][0] - jump_run))
         speed = winds[9000][1]
-    elif altitude < 9000:
+    elif altitude > 6000:
         theta_w = np.interp(altitude, [6000, 9000], \
             [winds[6000][0], winds[9000][0]])
         theta = np.deg2rad(np.abs(theta_w - jump_run))
@@ -84,7 +84,7 @@ def compute_wind_adj(jump_run, altitude, winds):
     elif altitude == 6000: # Don't want to lose precision from interpolating...
         theta = np.deg2rad(np.abs(winds[6000][0] - jump_run))
         speed = winds[6000][1]
-    elif altitude < 6000:
+    elif altitude > 3000:
         theta_w = np.interp(altitude, [3000, 6000], \
             [winds[3000][0], winds[6000][0]])
         theta = np.deg2rad(np.abs(theta_w - jump_run))
@@ -93,32 +93,33 @@ def compute_wind_adj(jump_run, altitude, winds):
     elif altitude <= 3000:
         theta = np.deg2rad(np.abs(winds[3000][0] - jump_run))
         speed = winds[3000][1]
-
        
     # Return u_adj, v_adj in knots
+    #print("theta = " + str(np.rad2deg(theta)) + ", altitude = " + str(altitude) + \
+    #      ", u_adj = " + str(speed*np.cos(theta)) + ", v_adj = " + \
+    #                      str(speed*np.sin(theta)))
+    
     return (speed*np.cos(theta), speed*np.sin(theta))
 
 def print_winds(winds, aircraft, exit_alt):
     degree_sign = u"\N{DEGREE SIGN}"
-    deg_total = 0
-    count = 0
+
     print("Winds Aloft for ACY:\n")
     for altitude in reversed(winds):
         print("\t" + str(altitude) + " ft: " + str(winds[altitude][1])+ " kts from " \
                 + str(winds[altitude][0]) + degree_sign)
-        deg_total += winds[altitude][0]
-        count += 1
 
     # TODO: Make this not hardcoded -- if EXIT_ALT is changed from 13500 to something else,
     #       the code below will not work
     exit_uppers = np.interp(exit_alt, [12000, 18000], [winds[12000][1], winds[18000][1]])
+    exit_deg = np.interp(exit_alt, [12000, 18000], [winds[12000][0], winds[18000][0]])
 
     print("")
     exit_sep = exit_sep_chart(exit_uppers, aircraft)
-    deg_avg = round(float(deg_total)/count)
-    print("\tSuggested jump run: " + colored(str(deg_avg) + degree_sign, 'magenta'))
 
-    return deg_avg, exit_sep 
+    print("\tSuggested jump run: " + colored(str(exit_deg) + degree_sign, 'magenta'))
+
+    return exit_deg, exit_sep 
 
 def exit_sep_chart(exit_uppers, aircraft):
     # Using values from https://www.dropzone.com/articles/safety/exit-separation-r876/
