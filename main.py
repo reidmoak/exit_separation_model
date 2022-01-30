@@ -68,10 +68,10 @@ def adjust_for_uppers(u, x, z, jump_run, winds):
         # Get velocity adjustment based on velocity of air column at given t, in ft/s
         u_adj = wind.compute_wind_adj(jump_run, z[t], winds)[0]*const.KT_TO_FPS
         v_adj = wind.compute_wind_adj(jump_run, z[t], winds)[1]*const.KT_TO_FPS
-        #print("v_adj[" + str(t) + " sec] = " + str(round(v_adj, 3)))
 
         # Adjust u[t] to be GROUND speed over time, adjusting for movement of 
-        # wind column, which is captured by u_adj
+        # wind column, which is captured by u_adj. No force-driven velocity in
+        # the y direction, so v[t] equals just v_adj
         u[t] = u[t] + u_adj
         v[t] = v_adj
 
@@ -79,13 +79,23 @@ def adjust_for_uppers(u, x, z, jump_run, winds):
         if t == 0:
             continue
 
-        # Calculate GROUND x distance over time by using the trapezoidal rule,
+        # Calculate GROUND distance over time by using the trapezoidal rule,
         # which is just the area under the ground velocity curve
         # np.trapz below is same as u[t-1]*(1 second) + (u[t] - u[t-1])/2
         x[t] = x[t-1] + np.trapz([u[t-1], u[t]], [t-1, t], axis=0) 
         y[t] = y[t-1] + np.trapz([v[t-1], v[t]], [t-1, t], axis=0)
 
     return u, x, v, y
+
+def plot_x_y(trajectories):
+    plt.figure(6)
+    for i, jumper in enumerate(trajectories):
+        plt.plot(jumper['x'], jumper['y'])
+    plt.grid(alpha=0.4,linestyle='--')
+    plt.title("Trajectories - Bird's Eye View")
+    plt.xlabel("x drift (ft)")
+    plt.ylabel("y drift (ft)")
+    plt.savefig("y_vs_x_trajectories.png")
 
 def plot_trajectories(trajectories):
     plt.figure(1)
@@ -321,6 +331,9 @@ if __name__ == "__main__":
             print("time = " + str(i) + " sec, Altitude = " + str(z) + " ft")
             if z < 0:
                 break
+        for i, u in enumerate(trajectories[0]['u']):
+            print("time = " + str(i) + " sec, u[t] = " + str(u) + " mph, altitude = " + \
+                  str(trajectories[0]['z'][i]) + " ft")
 
     ###################
     #      PLOTS      #
@@ -343,6 +356,7 @@ if __name__ == "__main__":
     generic_plot(trajectories[0]['x'], trajectories[0]['y'], 6, \
                  "y vs. x (First Group)", "x (feet)", \
                  "y (feet)", "x_vs_y_first_grp.png")
+    plot_x_y(trajectories)
 
     # Single jumper vertical speed - Freefly group
     generic_plot(t, trajectories[len(trajectories)-1]['w'], 4, \
