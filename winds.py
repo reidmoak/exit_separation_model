@@ -94,10 +94,8 @@ def compute_wind_adj(jump_run, altitude, winds):
         theta = np.deg2rad(np.abs(winds[3000][0] - jump_run))
         speed = winds[3000][1]
 
-    #print("altitude = " + str(altitude) + ", theta = " + str(np.rad2deg(theta)) + ", speed = " + str(speed))
-
-    #speed = speed * const.KT_TO_MPS
-        
+       
+    # Return u_adj, v_adj in knots
     return (speed*np.cos(theta), speed*np.sin(theta))
 
 def print_winds(winds, aircraft, exit_alt):

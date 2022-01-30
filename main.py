@@ -4,7 +4,8 @@
 #       constant angle with respect to the ground with an initial vert/horiz
 #       speed based on whatever it is at z = 5000)
 # TODO: Verify/fix freefly CD and A values to reflect real data
-# TODO: Clean up / Comment code
+#       NOTE: This will only be possible once I have reliable flysight data for
+#       a solo belly jump with known parameters (weight, winds, etc.)
 # TODO: Add option to import data from CSV file of the load, including number
 #       of groups, discipline for each group, average mass of the group, etc.
 # TODO: Add in y[t] to be able to create 3D plots
@@ -12,6 +13,10 @@
 #       skydiver.py and make it rho[z] with interpolation. Might be difficult,
 #       but I guess I can just compute z[t] first, using z[t-1] as the index 
 #       for rho[z] -- so z[t] = f(rho[z[t-1]]). Do this on a new branch probs
+# TODO: Verify that I am doing x calculation correctly, using trapezoid rule of
+#       u[t] rather than the compute_x function, which only calculates x in the
+#       air reference frame
+# TODO: Clean up / Comment code
 
 # Python Built-In imports
 import time
@@ -56,15 +61,22 @@ def find_nearest(array, value):
 
 def adjust_for_uppers(u, x, z, jump_run, winds):
     for t in range(len(u)):
-        u_adj = wind.compute_wind_adj(jump_run, z[t], winds)[0]
+        # Get velocity adjustment based on velocity of air column at given t, in ft/s
+        u_adj = wind.compute_wind_adj(jump_run, z[t], winds)[0] * const.KT_TO_FPS
 
-        # u (x velocity) adjustment DEBUG
-        uadj_debug = False
-        if uadj_debug is True:
-            print("altitude = " + str(z[t]) + " u[t] = " + str(u[t]) + ", u_adj = " + str(u_adj))
-        
+        # Adjust u[t] to be GROUND speed over time, adjusting for movement of 
+        # wind column, which is captured by u_adj
         u[t] = u[t] + u_adj
-        x[t] = x[t] + u_adj*t 
+
+        # At time zero, x is 0, so no adjustment needs to be made
+        if t == 0:
+            continue
+
+        # Calculate GROUND x distance over time by using the trapezoidal rule,
+        # which is just the area under the ground velocity curve
+        # np.trapz below is same as u[t-1]*(1 second) + (u[t] - u[t-1])/2
+        x[t] = x[t-1] + np.trapz([u[t-1], u[t]], [t-1, t], axis=0) 
+
     return u, x
 
 def plot_trajectories(trajectories):
@@ -162,33 +174,40 @@ def main_menu(winds):
                 print_title()
                 print(colored("Invalid entry, input must be between 1 and " + \
                               str(len(options)) + ".\n", 'red'))
-            elif ans == 1: 
+            elif ans == 1: # Print winds aloft (ACY) 
                 print_title()
                 rec_jump_run, rec_t_sep = wind.print_winds(winds, params.aircraft, params.EXIT_ALT)
                 print("")
-            elif ans == 2:
+            elif ans == 2: # Print simulation paramters
                 print_title()
                 params.show(False)
-            elif ans == 3:
+            elif ans == 3: # Modify simulation parameters
                 params.setup()
                 print_title()
-            elif ans == 4:
+            elif ans == 4: # Enable debug options
                 print_title()
                 print(colored("Option 4 is currently under construction...\n", 'cyan'))
-            elif ans == 5:
+            elif ans == 5: # Set jump run and exit separation to optimal values
                 rec_jump_run, rec_t_sep = wind.print_winds(winds, params.aircraft, params.EXIT_ALT)
                 params.jump_run = rec_jump_run
                 params.t_sep = rec_t_sep
                 print_title()
                 params.show(False)
-            elif ans == 6:
+            elif ans == 6: # Run simulation
                 return
         except ValueError:
             print_title()
             print(colored("Invalid entry, input must be a number.\n", 'red'))
             continue
             
-
+def generic_plot(x, y, fid, title, xlabel, ylabel, filename):
+    plt.figure(fid)
+    plt.plot(x, y)
+    plt.grid(alpha=.4,linestyle='--')
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.savefig(filename)
 
 if __name__ == "__main__":
     # Initialize params class, which will prompt user to setup parameter values
@@ -200,7 +219,7 @@ if __name__ == "__main__":
     # Winds
     winds = wind.get_forecast()
 
-    # Aircraft speeds TODO: Verify these!
+    # Aircraft speeds TODO: Verify these! Units in knots
     aircraft_speeds = {
         "Caravan"   : 70,
         "Otter"     : 60,
@@ -215,7 +234,8 @@ if __name__ == "__main__":
     z0 = params.EXIT_ALT                        # Initial Altitude in feet
     m = params.weight / const.g                 # Jumper mass in slugs
     Va = aircraft_speeds.get(params.aircraft)   # Aircraft airspeed in knots
-    num_groups = params.num_rw_groups + params.num_ff_groups
+    num_groups = params.num_rw_groups + \
+                 params.num_ff_groups
     sim_time = num_groups * 20                  # Simulation time in seconds
     sim_time = 120                              # TODO: Figure out how to make 
                                                 # this dynamic, since the above 
@@ -244,6 +264,8 @@ if __name__ == "__main__":
 
     # Compute x and z positions and velocities for each group on the load,
     # converting speeds from knots to m/s first
+    # NOTE: compute_x not really necessary, since we compute the x distance in
+    # the ground refernce frame when we call adjust_for_uppers
     trajectories = []
     for i, jumper in enumerate(load):
         if i < params.num_rw_groups:
@@ -263,19 +285,16 @@ if __name__ == "__main__":
             x = jumper.compute_x(t, i*x_offset, Va*const.KT_TO_FPS, Q)
             z = jumper.compute_z(t, z0, Va*const.KT_TO_FPS, Q)
 
-        # Convert speed back to knots for adjusting for winds
-        u = u / const.KT_TO_FPS
-
         # Account for drift due to uppers    
         if simple_winds is True:
-            u = u - V_upper
-            x = x - V_upper*t
+            u = u - V_upper*const.KT_TO_FPS
+            x = x - V_upper*const.KT_TO_FPS*t # Okay since V_upper is constant
         else:
             u, x = adjust_for_uppers(u, x, z, params.jump_run, winds)
 
         trajectories.append({
-            "u" : u*const.KT_TO_FPS*const.FPS_TO_MPH,
-            "w" : w*const.FPS_TO_MPH,
+            "u" : u*const.KT_TO_FPS*const.FPS_TO_MPH, # Convert to MPH for plots
+            "w" : w*const.FPS_TO_MPH,                 # Convert to MPH for plots
             "x" : x,
             "z" : z
         })
@@ -301,41 +320,25 @@ if __name__ == "__main__":
     # Full load, all groups 
     plot_trajectories(trajectories)
 
-    # Single jumper vertical speed - TODO: Make this its own function (with horiz speed)
-    plt.figure(2)
-    plt.plot(t, trajectories[0]['w'])
-    plt.grid(alpha=.4,linestyle='--')
-    plt.title("Vertical Speed vs. Time (First Group)")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Vertical Speed (mph)")
-    plt.savefig("vert_speed_first_grp.png")
+    # Single jumper vertical speed - Belly group
+    generic_plot(t, trajectories[0]['w'], 2, \
+                 "Vertical Speed vs. Time (First Group)", "Time (s)", \
+                 "Vertical Speed (mph)", "vert_speed_first_grp.png")
 
-    # Single jumper horizontal speed
-    plt.figure(3)
-    plt.plot(t, trajectories[0]['u'])
-    plt.grid(alpha=.4,linestyle='--')
-    plt.title("Horizontal Speed vs. Time (First Group)")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Horizontal Speed (mph)")
-    plt.savefig("horiz_speed_first_grp.png")
+    # Single jumper horizontal speed - Belly group
+    generic_plot(t, trajectories[0]['u'], 3, \
+                 "Horizontal Speed vs. Time (First Group)", "Time (s)", \
+                 "Horizontal Speed (mph)", "horiz_speed_first_grp.png")
 
-    # Single jumper vertical speed - TODO: Make this its own function (with horiz speed)
-    plt.figure(4)
-    plt.plot(t, trajectories[len(trajectories)-1]['w'])
-    plt.grid(alpha=.4,linestyle='--')
-    plt.title("Vertical Speed vs. Time (Last Group)")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Vertical Speed (mph)")
-    plt.savefig("vert_speed_last_grp.png")
+    # Single jumper vertical speed - Freefly group
+    generic_plot(t, trajectories[len(trajectories)-1]['w'], 4, \
+                 "Vertical Speed vs. Time (Last Group)", "Time (s)", \
+                 "Vertical Speed (mph)", "vert_speed_last_grp.png")
 
-    # Single jumper horizontal speed
-    plt.figure(5)
-    plt.plot(t, trajectories[len(trajectories)-1]['u'])
-    plt.grid(alpha=.4,linestyle='--')
-    plt.title("Horizontal Speed vs. Time (Last Group)")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Horizontal Speed (mph)")
-    plt.savefig("horiz_speed_last_grp.png")
+    # Single jumper horizontal speed - Freefly group
+    generic_plot(t, trajectories[len(trajectories)-1]['u'], 5, \
+                 "Horizontal Speed vs. Time (Last Group)", "Time (s)", \
+                 "Horizontal Speed (mph)", "horiz_speed_last_grp.png")
 
     # Open one of the plots with eog (use arrows to see other PNGs)
     processes.append(sp.Popen("eog z_vs_x_all_groups.png &", shell=True))
