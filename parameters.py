@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 from termcolor import colored
-from types import ModuleType
 
 class Params:
 

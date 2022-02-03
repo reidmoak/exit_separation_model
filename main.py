@@ -18,7 +18,6 @@
 # TODO: Clean up / Comment code
 
 # Python Built-In imports
-import time
 import sys
 import signal
 import os
@@ -26,7 +25,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import subprocess as sp
 from termcolor import colored
-from scipy import integrate
 
 # Custom Module imports
 import const
