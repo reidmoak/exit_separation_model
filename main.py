@@ -42,7 +42,7 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 # Return array index where array value is closest to provided value
-def find_nearest(array, value):
+def find_nearest_idx(array, value):
     closest = 0
     found = False
     for i, val in enumerate(array):
@@ -57,7 +57,7 @@ def find_nearest(array, value):
     return closest
 
 def adjust_for_uppers(u, x, z, jump_run, winds, t_step):
-    # Create v[t] and y[t]
+    # Create empty v[t] and y[t] numpy arrays
     v = np.array(range(len(u)), dtype='f')
     y = np.array(range(len(u)), dtype='f')
 
@@ -88,17 +88,17 @@ def adjust_for_uppers(u, x, z, jump_run, winds, t_step):
 
     return u, x, v, y
 
-def plot_x_y(trajectories):
+def plot_y_x(trajectories):
     plt.figure(6)
     for i, jumper in enumerate(trajectories):
         plt.plot(jumper['x'], jumper['y'])
     plt.grid(alpha=0.4,linestyle='--')
-    plt.title("Trajectories - Bird's Eye View")
-    plt.xlabel("x drift (ft)")
-    plt.ylabel("y drift (ft)")
-    plt.savefig("y_vs_x_trajectories.png")
+    plt.title("Jump Run Trajectories - Bird's Eye View")
+    plt.xlabel("Jump Run (ft)")
+    plt.ylabel("Perpendicular Drift (ft)")
+    plt.savefig("y_vs_x_all_groups.png")
 
-def plot_trajectories(trajectories):
+def plot_z_x(trajectories):
     plt.figure(1)
     # Iterate over full load of jumpers, plotting z vs x positions
     for i, jumper in enumerate(trajectories):
@@ -126,8 +126,8 @@ def plot_trajectories(trajectories):
     for i, _ in enumerate(trajectories):
         # For each pair of jumpers, search for the x positions corresponding to 
         # the time at which the z position is closest to pull altitude
-        pull_x_0_idx = find_nearest(trajectories[i]['z'], params.PULL_ALT)
-        pull_x_1_idx = find_nearest(trajectories[i+1]['z'], params.PULL_ALT)
+        pull_x_0_idx = find_nearest_idx(trajectories[i]['z'], params.PULL_ALT)
+        pull_x_1_idx = find_nearest_idx(trajectories[i+1]['z'], params.PULL_ALT)
         pull_x_0 = trajectories[i]['x'][pull_x_0_idx]
         pull_x_1 = trajectories[i+1]['x'][pull_x_1_idx]
 
@@ -166,6 +166,7 @@ def plot_trajectories(trajectories):
     plt.savefig("z_vs_x_all_groups.png")
     return 0
 
+# TODO: Figure this one out...
 def plot_3d(trajectories):
     plt.figure(7)
     #plt.grid(alpha=0.4,linestyle='--')
@@ -195,6 +196,7 @@ def main_menu(winds):
     def print_title():
         os.system('clear')
         print(colored("EXIT SEPARATION MODEL\n", 'green'))
+
     print_title()
 
     while(True):
@@ -269,11 +271,7 @@ if __name__ == "__main__":
     Va = aircraft_speeds.get(params.aircraft)   # Aircraft airspeed in knots
     num_groups = params.num_rw_groups + \
                  params.num_ff_groups
-    sim_time = num_groups * 20                  # Simulation time in seconds
-    sim_time = 120                              # TODO: Figure out how to make 
-                                                # this dynamic, since the above 
-                                                # line makes the x limit of the 
-                                                # plot very negative
+    sim_time = 120                              # TODO: Figure out how to make dynamic 
     t_step = 0.01                               # Seconds between sim time steps
 
     # Array of time stamps for jump data in seconds
@@ -289,8 +287,8 @@ if __name__ == "__main__":
         V_upper_adj = wind.compute_wind_adj(params.jump_run, params.EXIT_ALT, winds)
         Vg = Va + V_upper_adj[0]            # Aircraft ground speed in knots
 
-    x_offset = params.t_sep * (Vg*const.KT_TO_FPS) # Exit separation in feet
-
+    # Compute exit separation distance in feet
+    x_offset = params.t_sep * (Vg*const.KT_TO_FPS) 
 
     # Create an array of Skydivers based on num_groups
     load = []
@@ -358,7 +356,10 @@ if __name__ == "__main__":
     processes = []
 
     # Full load, all groups 
-    plot_trajectories(trajectories)
+    #   z vs x is side view perpendicular to left-to-right jump run 
+    #   y vs x is birds-eye view (jump-run still left to right)
+    plot_z_x(trajectories)
+    plot_y_x(trajectories)
 
     # Single jumper vertical speed - Belly group
     generic_plot(t, trajectories[0]['w'], 2, \
@@ -370,11 +371,6 @@ if __name__ == "__main__":
                  "Horizontal Speed vs. Time (First Group)", "Time (s)", \
                  "Horizontal Speed (mph)", "horiz_speed_first_grp.png")
 
-    generic_plot(trajectories[0]['x'], trajectories[0]['y'], 6, \
-                 "y vs. x (First Group)", "x (feet)", \
-                 "y (feet)", "y_vs_x_first_grp.png")
-    plot_x_y(trajectories)
-
     # Single jumper vertical speed - Freefly group
     generic_plot(t, trajectories[len(trajectories)-1]['w'], 4, \
                  "Vertical Speed vs. Time (Last Group)", "Time (s)", \
@@ -384,8 +380,6 @@ if __name__ == "__main__":
     generic_plot(t, trajectories[len(trajectories)-1]['u'], 5, \
                  "Horizontal Speed vs. Time (Last Group)", "Time (s)", \
                  "Horizontal Speed (mph)", "horiz_speed_last_grp.png")
-
-    #plot_3d(trajectories)
 
     # Open one of the plots with eog (use arrows to see other PNGs)
     processes.append(sp.Popen("eog z_vs_x_all_groups.png &", shell=True))
