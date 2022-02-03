@@ -117,7 +117,7 @@ def print_winds(winds, aircraft, exit_alt):
     print("")
     exit_sep = exit_sep_chart(exit_uppers, aircraft)
 
-    print("\tSuggested jump run: " + colored(str(exit_deg) + degree_sign, 'magenta'))
+    print("\tSuggested jump run: " + colored(str(int(exit_deg)) + degree_sign, 'magenta'))
 
     return exit_deg, exit_sep 
 

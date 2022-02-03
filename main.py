@@ -11,7 +11,6 @@
 #       air reference frame
 # TODO: Add option to import data from CSV file of the load, including number
 #       of groups, discipline for each group, average mass of the group, etc.
-# TODO: Add in y[t] to be able to create 3D plots
 # TODO: Make rho a function of altitude -- would need to make a lookup table in 
 #       skydiver.py and make it rho[z] with interpolation. Might be difficult,
 #       but I guess I can just compute z[t] first, using z[t-1] as the index 
@@ -59,7 +58,7 @@ def find_nearest(array, value):
             closest = i-1
     return closest
 
-def adjust_for_uppers(u, x, z, jump_run, winds):
+def adjust_for_uppers(u, x, z, jump_run, winds, t_step):
     # Create v[t] and y[t]
     v = np.array(range(len(u)), dtype='f')
     y = np.array(range(len(u)), dtype='f')
@@ -82,8 +81,12 @@ def adjust_for_uppers(u, x, z, jump_run, winds):
         # Calculate GROUND distance over time by using the trapezoidal rule,
         # which is just the area under the ground velocity curve
         # np.trapz below is same as u[t-1]*(1 second) + (u[t] - u[t-1])/2
-        x[t] = x[t-1] + np.trapz([u[t-1], u[t]], [t-1, t], axis=0) 
-        y[t] = y[t-1] + np.trapz([v[t-1], v[t]], [t-1, t], axis=0)
+        # NOTE: Changed to the manual method, since I can use t_step to change
+        # the dt increment for the integral
+        x[t] = x[t-1] + t_step * (u[t-1] + (u[t] - u[t-1])/2)
+        y[t] = y[t-1] + t_step * (v[t-1] + (v[t] - v[t-1])/2)
+        #x[t] = x[t-1] + np.trapz([u[t-1], u[t]], [t-1, t], axis=0) 
+        #y[t] = y[t-1] + np.trapz([v[t-1], v[t]], [t-1, t], axis=0)
 
     return u, x, v, y
 
@@ -165,6 +168,20 @@ def plot_trajectories(trajectories):
     plt.savefig("z_vs_x_all_groups.png")
     return 0
 
+def plot_3d(trajectories):
+    plt.figure(7)
+    #plt.grid(alpha=0.4,linestyle='--')
+    plt.title("Trajectories - 3D")
+    x = trajectories[0]['x']
+    y = trajectories[0]['y']
+    z = trajectories[0]['z']
+    ax = plt.axes(projection='3d')
+    #plt.xlabel("x (ft)")
+    #plt.ylabel("y (ft)")
+    #plt.zlabel("z (ft)")
+    ax.plot3D(x, y, z, 'gray')
+    plt.savefig("3d_plot.png")
+
 def main_menu(winds):
     options = []
     options.append("Print winds aloft (ACY)")
@@ -207,7 +224,7 @@ def main_menu(winds):
                 print(colored("Option 4 is currently under construction...\n", 'cyan'))
             elif ans == 5: # Set jump run and exit separation to optimal values
                 rec_jump_run, rec_t_sep = wind.print_winds(winds, params.aircraft, params.EXIT_ALT)
-                params.jump_run = rec_jump_run
+                params.jump_run = int(rec_jump_run)
                 params.t_sep = rec_t_sep
                 print_title()
                 params.show(False)
@@ -259,9 +276,11 @@ if __name__ == "__main__":
                                                 # this dynamic, since the above 
                                                 # line makes the x limit of the 
                                                 # plot very negative
+    t_step = 0.01                               # Seconds between sim time steps
 
     # Array of time stamps for jump data in seconds
     t = np.array(range(sim_time))
+    t = np.array(np.linspace(0, sim_time, int(sim_time/t_step) + 1))
 
     # Winds Aloft DEBUG - makes them constant at 180 from jump run
     simple_winds = False
@@ -308,7 +327,7 @@ if __name__ == "__main__":
             u = u - V_upper*const.KT_TO_FPS
             x = x - V_upper*const.KT_TO_FPS*t # Okay since V_upper is constant
         else:
-            u, x, v, y = adjust_for_uppers(u, x, z, params.jump_run, winds)
+            u, x, v, y = adjust_for_uppers(u, x, z, params.jump_run, winds, t_step)
 
         trajectories.append({
             "u" : u*const.FPS_TO_MPH, # Convert to MPH for plots
@@ -355,7 +374,7 @@ if __name__ == "__main__":
 
     generic_plot(trajectories[0]['x'], trajectories[0]['y'], 6, \
                  "y vs. x (First Group)", "x (feet)", \
-                 "y (feet)", "x_vs_y_first_grp.png")
+                 "y (feet)", "y_vs_x_first_grp.png")
     plot_x_y(trajectories)
 
     # Single jumper vertical speed - Freefly group
@@ -367,6 +386,8 @@ if __name__ == "__main__":
     generic_plot(t, trajectories[len(trajectories)-1]['u'], 5, \
                  "Horizontal Speed vs. Time (Last Group)", "Time (s)", \
                  "Horizontal Speed (mph)", "horiz_speed_last_grp.png")
+
+    #plot_3d(trajectories)
 
     # Open one of the plots with eog (use arrows to see other PNGs)
     processes.append(sp.Popen("eog z_vs_x_all_groups.png &", shell=True))
