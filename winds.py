@@ -5,31 +5,34 @@ import numpy as np
 import const
 from termcolor import colored
 
+# Get winds aloft forecast for ACY
 def get_ACY_forecast(url):
-    for line in file:
+    file_lines = urlopen(url)
+    for line in file_lines:
         decoded_line = line.decode("utf-8")
         if "ACY " in decoded_line:
             return decoded_line
 
-url = "https://www.aviationweather.gov/windtemp/data?level=low&fcst=06&region=bos&layout=on&date="
-file = urlopen(url)
-
-data_points = get_ACY_forecast(file).strip().split(' ')
-
-# Get 3000, 6000, 9000, 12000, and 18000 feet forecasts
-altitudes = [3000, 6000, 9000, 12000, 18000]
-forecast = {}
-for i, val in enumerate(data_points):
-    if i < len(altitudes): forecast[altitudes[i]] = data_points[i+1]
-    else: break
-
-winds = {}
-for altitude in forecast.keys():
-    direction = int(forecast[altitude][0:2])*10
-    speed = int(forecast[altitude][2:4])
-    winds[altitude] = (direction, speed)
 
 def get_forecast():
+    # Winds aloft URL
+    url = "https://www.aviationweather.gov/windtemp/data?level=low&fcst=06&region=bos&layout=on&date="
+    altitudes = [3000, 6000, 9000, 12000, 18000]
+    winds = {}
+    forecast = {}
+
+    data_points = get_ACY_forecast(url).strip().split(' ')
+
+    # Get 3000, 6000, 9000, 12000, and 18000 feet forecasts
+    for i, val in enumerate(data_points):
+        if i < len(altitudes): forecast[altitudes[i]] = data_points[i+1]
+        else: break
+
+    for altitude in forecast.keys():
+        direction = int(forecast[altitude][0:2])*10
+        speed = int(forecast[altitude][2:4])
+        winds[altitude] = (direction, speed)
+
     return winds
 
 def compass_rotate(winds):
@@ -123,8 +126,11 @@ def print_winds(winds, aircraft, exit_alt):
 
 def exit_sep_chart(exit_uppers, aircraft):
     # Using values from https://www.dropzone.com/articles/safety/exit-separation-r876/
-    if "Caravan" in aircraft:
-        V_tas = 70
+
+    # Get aircraft-dependent TAS (true airspeed), in knots 
+    V_tas = const.AIRCRAFT_SPEEDS.get(aircraft)
+
+    # Compute ground speed based on (1) aircraft airspeed and (2) uppers at EXIT_ALT
     V_g = V_tas - exit_uppers
     exit_sep = {
         100: 6,

@@ -255,12 +255,7 @@ if __name__ == "__main__":
     winds = wind.get_forecast()
 
     # Aircraft speeds TODO: Verify these! Units in knots
-    aircraft_speeds = {
-        "Caravan"   : 70,
-        "Otter"     : 60,
-        "Skyvan"    : 90,
-        "Cessna 182": 55
-    }
+    aircraft_speeds = const.AIRCRAFT_SPEEDS
 
     main_menu(winds)
 

@@ -15,6 +15,12 @@ A_BELLY = 16.0*68.0 / 144.0 * 0.7 # Estimated Human body surface area - see NOTE
 
 # MISC CONSTANTS
 BLAZE_IT = 420
+AIRCRAFT_SPEEDS = {     # In knots
+    "Caravan"   : 70,
+    "Otter"     : 60,
+    "Skyvan"    : 90,
+    "Cessna 182": 55
+}
 
 # NOTE 1:                                                                      
 # Human body surface area -- Estimated by taking my width*height in inches,    
