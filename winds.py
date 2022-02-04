@@ -108,6 +108,7 @@ def print_winds(winds, aircraft, exit_alt):
     degree_sign = u"\N{DEGREE SIGN}"
 
     print("Winds Aloft for ACY:\n")
+    # TODO: MAKE SURE THIS WORKS IN PYTHON 3.8 AS WELL
     for altitude in list(reversed((sorted(winds.keys())))):
         print("\t" + str(altitude) + " ft: " + str(winds[altitude][1])+ " kts from " \
                 + str(winds[altitude][0]) + degree_sign)
