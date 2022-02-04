@@ -251,26 +251,23 @@ if __name__ == "__main__":
     # Initialize signal handler
     signal.signal(signal.SIGINT, signal_handler)
 
-    # Winds
+    # Get winds from Aviation weather website
     winds = wind.get_forecast()
 
-    # Aircraft speeds TODO: Verify these! Units in knots
-    aircraft_speeds = const.AIRCRAFT_SPEEDS
-
+    # Enter main menu
     main_menu(winds)
 
     # Initialize runtime variables
-    Q = 0                                       # rho*A*CD, to keep code clean
-    z0 = params.EXIT_ALT                        # Initial Altitude in feet
-    m = params.weight / const.g                 # Jumper mass in slugs
-    Va = aircraft_speeds.get(params.aircraft)   # Aircraft airspeed in knots
+    Q = 0                                           # rho*A*CD, to keep code clean
+    z0 = params.EXIT_ALT                            # Initial Altitude in feet
+    m = params.weight / const.g                     # Jumper mass in slugs
+    Va = const.AIRCRAFT_SPEEDS.get(params.aircraft) # Aircraft airspeed in knots
     num_groups = params.num_rw_groups + \
-                 params.num_ff_groups
-    sim_time = 120                              # TODO: Figure out how to make dynamic 
-    t_step = 0.01                               # Seconds between sim time steps
+                 params.num_ff_groups               # Total number of groups on load
+    sim_time = 120                                  # Simulation time in seconds TODO: Figure out how to make dynamic 
+    t_step = 0.01                                   # Seconds between sim time steps
 
-    # Array of time stamps for jump data in seconds
-    t = np.array(range(sim_time))
+    # Array of time stamps for jump data in increments of t_step seconds
     t = np.array(np.linspace(0, sim_time, int(sim_time/t_step) + 1))
 
     # Winds Aloft DEBUG - makes them constant at 180 from jump run
