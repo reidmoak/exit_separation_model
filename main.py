@@ -16,6 +16,8 @@
 #       but I guess I can just compute z[t] first, using z[t-1] as the index 
 #       for rho[z] -- so z[t] = f(rho[z[t-1]]). Do this on a new branch probs
 # TODO: Clean up / Comment code
+# TODO: Get rid of USPA Exit Separation table, and make it just a simple
+#       calculation based on const.IDEAL_SEP
 
 # Python Built-In imports
 import sys
